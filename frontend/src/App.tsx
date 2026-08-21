@@ -37,6 +37,25 @@ type LineupsResponse = {
   lineups: Lineup[];
 };
 
+
+type ReplacementOption = {
+  replacement_player: string;
+  lineup: Lineup;
+};
+
+type ReplacementResponse = {
+  team: string;
+  season: string;
+  base_lineup: {
+    id: string;
+    name: string;
+    remove_player: string;
+    remaining_players: string[];
+  };
+  count: number;
+  replacements: ReplacementOption[];
+};
+
 function App() {
   const [data, setData] = useState<LineupsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -54,6 +73,11 @@ function App() {
   const [replacementBaseId, setReplacementBaseId] = useState("");
   const [removePlayer, setRemovePlayer] = useState("");
   const [replacementPlayer, setReplacementPlayer] = useState("");
+  const [replacementData, setReplacementData] =
+    useState<ReplacementResponse | null>(null);
+
+  const [replacementLoading, setReplacementLoading] =
+    useState(false);
 
 
   useEffect(() => {
@@ -160,106 +184,48 @@ function App() {
   ]);
 
 
-  const replacementOptions = useMemo(() => {
-    if (
-      !data ||
-      !replacementBase ||
-      !removePlayer
-    ) {
-      return [];
-    }
-
-    const remainingPlayers = replacementBasePlayers.filter(
-      (player) => player !== removePlayer
-    );
-
-    const candidates = data.lineups
-      .map((lineup) => {
-        const lineupPlayers = lineup.GROUP_NAME
-          .split(" - ")
-          .map((player) => player.trim());
-
-        const containsRemainingFour = remainingPlayers.every(
-          (player) => lineupPlayers.includes(player)
-        );
-
-        if (
-          !containsRemainingFour ||
-          lineupPlayers.includes(removePlayer)
-        ) {
-          return null;
-        }
-
-        const addedPlayers = lineupPlayers.filter(
-          (player) => !remainingPlayers.includes(player)
-        );
-
-        if (addedPlayers.length !== 1) {
-          return null;
-        }
-
-        return {
-          lineup,
-          replacementPlayer: addedPlayers[0],
-        };
-      })
-      .filter(
-        (
-          candidate
-        ): candidate is {
-          lineup: Lineup;
-          replacementPlayer: string;
-        } => candidate !== null
-      );
-
-    /*
-     * NBA lineup data can contain repeated representations of the
-     * same five-man unit. Keep the largest-minute observation for
-     * each replacement player.
-     */
-    const bestObservationByPlayer = new Map<
-      string,
-      {
-        lineup: Lineup;
-        replacementPlayer: string;
-      }
-    >();
-
-    candidates.forEach((candidate) => {
-      const existing = bestObservationByPlayer.get(
-        candidate.replacementPlayer
-      );
-
-      if (
-        !existing ||
-        candidate.lineup.MIN > existing.lineup.MIN
-      ) {
-        bestObservationByPlayer.set(
-          candidate.replacementPlayer,
-          candidate
-        );
-      }
-    });
-
-    return Array.from(
-      bestObservationByPlayer.values()
-    ).sort(
-      (a, b) =>
-        b.lineup.NET_RATING -
-        a.lineup.NET_RATING
-    );
-  }, [
-    data,
-    replacementBase,
-    replacementBasePlayers,
-    removePlayer,
-  ]);
-
-
   useEffect(() => {
     setRemovePlayer("");
     setReplacementPlayer("");
   }, [replacementBaseId]);
+
+
+  useEffect(() => {
+    if (!replacementBaseId || !removePlayer) {
+      setReplacementData(null);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      base_lineup_id: replacementBaseId,
+      remove_player: removePlayer,
+    });
+
+    setReplacementLoading(true);
+
+    fetch(
+      `http://127.0.0.1:8000/api/lineups/replacements?${params.toString()}`
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Replacement request failed with status ${response.status}`
+          );
+        }
+
+        return response.json();
+      })
+      .then((result: ReplacementResponse) => {
+        setReplacementData(result);
+      })
+      .catch((error) => {
+        console.error("Could not load replacement options:", error);
+        setReplacementData(null);
+      })
+      .finally(() => {
+        setReplacementLoading(false);
+      });
+  }, [replacementBaseId, removePlayer]);
 
   const comparisonMetrics = useMemo(() => {
     if (!lineupA || !lineupB) return [];
@@ -914,17 +880,21 @@ function App() {
                   </div>
 
                   <span className="sample-count">
-                    {replacementOptions.length} options found
+                    {replacementData?.count ?? 0} options found
                   </span>
                 </div>
 
-                {replacementOptions.length > 0 ? (
-                  <div className="replacement-options">
-                    {replacementOptions.map(
+                  {replacementLoading ? (
+                    <div className="replacement-empty">
+                      Loading replacement options...
+                    </div>
+                  ) : replacementData && replacementData.replacements.length > 0 ? (
+                    <div className="replacement-options">
+                      {replacementData.replacements.map(
                       (
                         {
                           lineup,
-                          replacementPlayer: candidatePlayer,
+                          replacement_player: candidatePlayer,
                         },
                         index
                       ) => {

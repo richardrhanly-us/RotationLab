@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI
+from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -104,4 +105,108 @@ def compare_lineups(lineup_a: str, lineup_b: str):
             "name": b["GROUP_NAME"],
         },
         "comparison": comparison,
+    }
+
+@app.get("/api/lineups/replacements")
+def get_lineup_replacements(
+    base_lineup_id: str,
+    remove_player: str,
+):
+    df = pd.read_csv(DATA_PATH)
+
+    base_rows = df[df["GROUP_ID"] == base_lineup_id]
+
+    if base_rows.empty:
+        raise HTTPException(
+            status_code=404,
+            detail="Base lineup not found.",
+        )
+
+    # If the same GROUP_ID appears more than once,
+    # use the observation with the largest minutes sample.
+    base = base_rows.sort_values(
+        by="MIN",
+        ascending=False,
+    ).iloc[0]
+
+    base_players = [
+        player.strip()
+        for player in base["GROUP_NAME"].split(" - ")
+    ]
+
+    if remove_player not in base_players:
+        raise HTTPException(
+            status_code=400,
+            detail="Remove player is not part of the selected base lineup.",
+        )
+
+    remaining_players = [
+        player
+        for player in base_players
+        if player != remove_player
+    ]
+
+    replacement_options = {}
+
+    for _, row in df.iterrows():
+        lineup_players = [
+            player.strip()
+            for player in row["GROUP_NAME"].split(" - ")
+        ]
+
+        # All four remaining players must be present.
+        if not all(
+            player in lineup_players
+            for player in remaining_players
+        ):
+            continue
+
+        # The removed player cannot still be in the candidate lineup.
+        if remove_player in lineup_players:
+            continue
+
+        added_players = [
+            player
+            for player in lineup_players
+            if player not in remaining_players
+        ]
+
+        # A valid five-man replacement should introduce exactly one player.
+        if len(added_players) != 1:
+            continue
+
+        replacement_player = added_players[0]
+
+        candidate = {
+            "replacement_player": replacement_player,
+            "lineup": row.to_dict(),
+        }
+
+        existing = replacement_options.get(replacement_player)
+
+        # Keep the largest-minute observation for each replacement player.
+        if (
+            existing is None
+            or row["MIN"] > existing["lineup"]["MIN"]
+        ):
+            replacement_options[replacement_player] = candidate
+
+    results = list(replacement_options.values())
+
+    results.sort(
+        key=lambda option: option["lineup"]["NET_RATING"],
+        reverse=True,
+    )
+
+    return {
+        "team": "Oklahoma City Thunder",
+        "season": "2025-26",
+        "base_lineup": {
+            "id": base["GROUP_ID"],
+            "name": base["GROUP_NAME"],
+            "remove_player": remove_player,
+            "remaining_players": remaining_players,
+        },
+        "count": len(results),
+        "replacements": results,
     }
