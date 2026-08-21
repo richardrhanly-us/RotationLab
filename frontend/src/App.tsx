@@ -46,6 +46,8 @@ function App() {
   const [minimumGames, setMinimumGames] = useState(3);
   const [sortBy, setSortBy] = useState("NET_RATING");
   const [topN, setTopN] = useState(10);
+  const [includePlayer, setIncludePlayer] = useState("");
+  const [excludePlayer, setExcludePlayer] = useState("");
 
   useEffect(() => {
     fetch("http://127.0.0.1:8000/api/lineups?limit=50")
@@ -71,6 +73,19 @@ function App() {
     [data, lineupBId]
   );
 
+  const players = useMemo(() => {
+    if (!data) return [];
+
+    const names = new Set<string>();
+
+    data.lineups.forEach((lineup) => {
+      lineup.GROUP_NAME.split(" - ").forEach((player) => {
+        names.add(player.trim());
+      });
+    });
+
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
+  }, [data]);
 
 const comparisonMetrics = useMemo(() => {
   if (!lineupA || !lineupB) return [];
@@ -234,11 +249,29 @@ const comparisonSummary = useMemo(() => {
 const leaderboard = useMemo(() => {
   if (!data) return [];
 
-  const filtered = data.lineups.filter(
-    (lineup) =>
-      lineup.MIN >= minimumMinutes &&
-      lineup.GP >= minimumGames
-  );
+
+
+  const filtered = data.lineups.filter((lineup) => {
+    const lineupPlayers = lineup.GROUP_NAME
+      .split(" - ")
+      .map((player) => player.trim());
+
+    const meetsMinutes = lineup.MIN >= minimumMinutes;
+    const meetsGames = lineup.GP >= minimumGames;
+
+    const includesPlayer =
+      includePlayer === "" || lineupPlayers.includes(includePlayer);
+
+    const excludesPlayer =
+      excludePlayer === "" || !lineupPlayers.includes(excludePlayer);
+
+    return (
+      meetsMinutes &&
+      meetsGames &&
+      includesPlayer &&
+      excludesPlayer
+    );
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     switch (sortBy) {
@@ -270,7 +303,10 @@ const leaderboard = useMemo(() => {
   minimumGames,
   sortBy,
   topN,
+  includePlayer,
+  excludePlayer,
 ]);
+
 
 
 if (loading) {
@@ -308,33 +344,19 @@ if (loading) {
         </div>
 
         <div className="selectors">
-          <label>
-            <span>Lineup A</span>
-            <select
-              value={lineupAId}
-              onChange={(event) => setLineupAId(event.target.value)}
-            >
-              {data.lineups.map((lineup) => (
-                <option key={lineup.GROUP_ID} value={lineup.GROUP_ID}>
-                  {lineup.GROUP_NAME}
-                </option>
-              ))}
-            </select>
-          </label>
+          <LineupPicker
+            label="Lineup A"
+            lineups={data.lineups}
+            selectedId={lineupAId}
+            onSelect={setLineupAId}
+          />
 
-          <label>
-            <span>Lineup B</span>
-            <select
-              value={lineupBId}
-              onChange={(event) => setLineupBId(event.target.value)}
-            >
-              {data.lineups.map((lineup) => (
-                <option key={lineup.GROUP_ID} value={lineup.GROUP_ID}>
-                  {lineup.GROUP_NAME}
-                </option>
-              ))}
-            </select>
-          </label>
+          <LineupPicker
+            label="Lineup B"
+            lineups={data.lineups}
+            selectedId={lineupBId}
+            onSelect={setLineupBId}
+          />
         </div>
       </section>
 
@@ -504,6 +526,41 @@ if (loading) {
                 <option value={20}>Top 20</option>
               </select>
             </label>
+
+
+            <label>
+              <span>Include Player</span>
+              <select
+                value={includePlayer}
+                onChange={(event) => setIncludePlayer(event.target.value)}
+              >
+                <option value="">Any player</option>
+
+                {players.map((player) => (
+                  <option key={player} value={player}>
+                    {player}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              <span>Exclude Player</span>
+              <select
+                value={excludePlayer}
+                onChange={(event) => setExcludePlayer(event.target.value)}
+              >
+                <option value="">No exclusion</option>
+
+                {players.map((player) => (
+                  <option key={player} value={player}>
+                    {player}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+
           </div>
 
           <div className="leaderboard-table">
@@ -516,6 +573,7 @@ if (loading) {
               <span>DRTG</span>
               <span>NET</span>
               <span>TS%</span>
+              <span>Actions</span>
             </div>
 
             {leaderboard.map((lineup, index) => (
@@ -552,6 +610,23 @@ if (loading) {
                 <span>
                   {(lineup.TS_PCT * 100).toFixed(1)}%
                 </span>
+
+                <div className="leaderboard-actions">
+                  <button
+                    type="button"
+                    onClick={() => setLineupAId(lineup.GROUP_ID)}
+                  >
+                    Set as A
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setLineupBId(lineup.GROUP_ID)}
+                  >
+                    Set as B
+                  </button>
+                </div>
+
               </div>
             ))}
 
@@ -630,6 +705,115 @@ function LineupCard({
         <Metric label="TS %" value={`${(lineup.TS_PCT * 100).toFixed(1)}%`} />
       </div>
     </article>
+  );
+}
+
+
+function LineupPicker({
+  label,
+  lineups,
+  selectedId,
+  onSelect,
+}: {
+  label: string;
+  lineups: Lineup[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const selectedLineup = lineups.find(
+    (lineup) => lineup.GROUP_ID === selectedId
+  );
+
+  const filteredLineups = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    if (!query) {
+      return lineups;
+    }
+
+    return lineups.filter((lineup) =>
+      lineup.GROUP_NAME.toLowerCase().includes(query)
+    );
+  }, [lineups, search]);
+
+  return (
+    <div className="lineup-picker">
+      <span className="lineup-picker-label">{label}</span>
+
+      <button
+        type="button"
+        className="lineup-picker-trigger"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>
+          {selectedLineup
+            ? selectedLineup.GROUP_NAME
+            : "Select a lineup"}
+        </span>
+
+        <span className="lineup-picker-arrow">
+          {open ? "▲" : "▼"}
+        </span>
+      </button>
+
+      {open && (
+        <div className="lineup-picker-menu">
+          <input
+            type="text"
+            className="lineup-picker-search"
+            placeholder="Search by player name..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            autoFocus
+          />
+
+          <div className="lineup-picker-results">
+            {filteredLineups.map((lineup) => {
+              const players = lineup.GROUP_NAME.split(" - ");
+
+              return (
+                <button
+                  type="button"
+                  key={lineup.GROUP_ID}
+                  className={`lineup-picker-option ${
+                    lineup.GROUP_ID === selectedId
+                      ? "lineup-picker-option-selected"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    onSelect(lineup.GROUP_ID);
+                    setSearch("");
+                    setOpen(false);
+                  }}
+                >
+                  <span className="lineup-picker-players">
+                    {players.map((player) => (
+                      <span key={player}>{player}</span>
+                    ))}
+                  </span>
+
+                  <span className="lineup-picker-meta">
+                    {lineup.MIN.toFixed(1)} MIN
+                    {" • "}
+                    {lineup.NET_RATING > 0 ? "+" : ""}
+                    {lineup.NET_RATING.toFixed(1)} NET
+                  </span>
+                </button>
+              );
+            })}
+
+            {filteredLineups.length === 0 && (
+              <div className="lineup-picker-empty">
+                No matching lineups.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
