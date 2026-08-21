@@ -100,8 +100,6 @@ The leaderboard can display the top 5, 10, or 20 qualifying units.
 
 RotationLab is being developed toward a broader basketball operations decision-support workflow.
 
-Planned features include:
-
 ### Leaderboard-to-Comparison Workflow
 
 Leaderboard rows will be selectable directly as Lineup A or Lineup B so analysts can identify an interesting unit and immediately compare it against another lineup.
@@ -222,7 +220,7 @@ The FastAPI backend will be expanded with endpoints for:
 
 ### NBA Data
 
-- `nba_api`
+- nba_api
 - NBA Stats lineup endpoints
 
 ### Planned Data Layer
@@ -247,3 +245,80 @@ RotationLab/
 │   └── test_okc_lineups.py
 ├── .gitignore
 └── README.md
+```
+
+## Running the Project Locally
+
+### Backend
+
+From the project root:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m uvicorn backend.main:app --reload
+```
+
+The API will be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+FastAPI documentation:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Frontend
+
+Open a second terminal:
+
+```powershell
+cd frontend
+npm run dev
+```
+
+The frontend will be available at:
+
+```text
+http://localhost:5173
+```
+
+## Data Pipeline
+
+The current data ingestion script retrieves Oklahoma City five-man lineup data from NBA Stats using nba_api.
+
+Run:
+
+```powershell
+python scripts\test_okc_lineups.py
+```
+
+The processed dataset is written to:
+
+```text
+data/okc_lineups_2025_26.csv
+```
+
+The FastAPI backend reads this dataset and exposes it to the React frontend.
+
+## Project Goal
+
+RotationLab is intended to demonstrate a full basketball analytics software workflow:
+
+```text
+NBA data ingestion
+        ↓
+data processing
+        ↓
+basketball metrics
+        ↓
+FastAPI backend
+        ↓
+React interface
+        ↓
+lineup and rotation decision support
+```
+
+The long-term goal is to evolve the project from a lineup statistics explorer into a more complete basketball operations application capable of supporting lineup evaluation, rotation analysis, substitution analysis, and possession-level decision support.
