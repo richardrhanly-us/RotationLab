@@ -268,15 +268,32 @@ A future version is planned to use PostgreSQL for persistent storage of:
 - Possessions
 - Advanced metrics
 
-### API Expansion
+### Backend Analytics API
 
-The FastAPI backend will be expanded with endpoints for:
+RotationLab now moves meaningful lineup analysis logic into the FastAPI backend rather than keeping all analytics calculations in the React client.
+
+Current API capabilities include:
+
+- Five-man lineup retrieval
+- Lineup comparison
+- Player replacement discovery
+- Replacement-option ranking
+
+The replacement discovery endpoint accepts a base lineup and a player to remove, then:
+
+1. Identifies the remaining four-player core
+2. Searches the full lineup dataset for observed alternatives
+3. Identifies the replacement player in each matching unit
+4. Deduplicates repeated replacement observations using the largest-minute sample
+5. Ranks the observed options by Net Rating
+
+The React frontend requests these results from FastAPI and uses the returned data to populate the replacement discovery interface.
+
+Future API expansion may include:
 
 - Leaderboard filtering
 - Player lookup
 - Lineup lookup
-- Lineup comparison
-- Player replacement analysis
 - Rotation analysis
 - Game-level lineup data
 - Stint analysis
