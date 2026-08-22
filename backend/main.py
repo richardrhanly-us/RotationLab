@@ -1,9 +1,9 @@
 from pathlib import Path
 
 import pandas as pd
-from fastapi import FastAPI
-from fastapi import HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
     title="RotationLab API",
@@ -49,6 +49,7 @@ def get_lineups(limit: int = 25):
         "count": len(df),
         "lineups": df.to_dict(orient="records"),
     }
+
 
 @app.get("/api/lineups/compare")
 def compare_lineups(lineup_a: str, lineup_b: str):
@@ -107,6 +108,7 @@ def compare_lineups(lineup_a: str, lineup_b: str):
         "comparison": comparison,
     }
 
+
 @app.get("/api/lineups/replacements")
 def get_lineup_replacements(
     base_lineup_id: str,
@@ -122,8 +124,6 @@ def get_lineup_replacements(
             detail="Base lineup not found.",
         )
 
-    # If the same GROUP_ID appears more than once,
-    # use the observation with the largest minutes sample.
     base = base_rows.sort_values(
         by="MIN",
         ascending=False,
@@ -154,14 +154,12 @@ def get_lineup_replacements(
             for player in row["GROUP_NAME"].split(" - ")
         ]
 
-        # All four remaining players must be present.
         if not all(
             player in lineup_players
             for player in remaining_players
         ):
             continue
 
-        # The removed player cannot still be in the candidate lineup.
         if remove_player in lineup_players:
             continue
 
@@ -171,7 +169,6 @@ def get_lineup_replacements(
             if player not in remaining_players
         ]
 
-        # A valid five-man replacement should introduce exactly one player.
         if len(added_players) != 1:
             continue
 
@@ -184,7 +181,6 @@ def get_lineup_replacements(
 
         existing = replacement_options.get(replacement_player)
 
-        # Keep the largest-minute observation for each replacement player.
         if (
             existing is None
             or row["MIN"] > existing["lineup"]["MIN"]
@@ -209,4 +205,82 @@ def get_lineup_replacements(
         },
         "count": len(results),
         "replacements": results,
+    }
+
+
+@app.get("/api/lineups/four-player-core")
+def get_four_player_core(
+    player_1: str,
+    player_2: str,
+    player_3: str,
+    player_4: str,
+):
+    df = pd.read_csv(DATA_PATH)
+
+    core_players = [
+        player_1.strip(),
+        player_2.strip(),
+        player_3.strip(),
+        player_4.strip(),
+    ]
+
+    if len(set(core_players)) != 4:
+        raise HTTPException(
+            status_code=400,
+            detail="Four unique players are required.",
+        )
+
+    results_by_fifth_player = {}
+
+    for _, row in df.iterrows():
+        lineup_players = [
+            player.strip()
+            for player in row["GROUP_NAME"].split(" - ")
+        ]
+
+        contains_core = all(
+            player in lineup_players
+            for player in core_players
+        )
+
+        if not contains_core:
+            continue
+
+        fifth_players = [
+            player
+            for player in lineup_players
+            if player not in core_players
+        ]
+
+        if len(fifth_players) != 1:
+            continue
+
+        fifth_player = fifth_players[0]
+
+        candidate = {
+            "fifth_player": fifth_player,
+            "lineup": row.to_dict(),
+        }
+
+        existing = results_by_fifth_player.get(fifth_player)
+
+        if (
+            existing is None
+            or row["MIN"] > existing["lineup"]["MIN"]
+        ):
+            results_by_fifth_player[fifth_player] = candidate
+
+    results = list(results_by_fifth_player.values())
+
+    results.sort(
+        key=lambda option: option["lineup"]["NET_RATING"],
+        reverse=True,
+    )
+
+    return {
+        "team": "Oklahoma City Thunder",
+        "season": "2025-26",
+        "core_players": core_players,
+        "count": len(results),
+        "lineups": results,
     }

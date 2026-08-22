@@ -1,6 +1,8 @@
 import { useEffect, useRef, useMemo, useState } from "react";
 import "./App.css";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 type Lineup = {
   GROUP_ID: string;
   GROUP_NAME: string;
@@ -37,7 +39,6 @@ type LineupsResponse = {
   lineups: Lineup[];
 };
 
-
 type ReplacementOption = {
   replacement_player: string;
   lineup: Lineup;
@@ -56,6 +57,19 @@ type ReplacementResponse = {
   replacements: ReplacementOption[];
 };
 
+type FourPlayerCoreOption = {
+  fifth_player: string;
+  lineup: Lineup;
+};
+
+type FourPlayerCoreResponse = {
+  team: string;
+  season: string;
+  core_players: string[];
+  count: number;
+  lineups: FourPlayerCoreOption[];
+};
+
 function App() {
   const [data, setData] = useState<LineupsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -67,21 +81,25 @@ function App() {
   const [topN, setTopN] = useState(10);
   const [includePlayer, setIncludePlayer] = useState("");
   const [excludePlayer, setExcludePlayer] = useState("");
-  const [openLineupPicker, setOpenLineupPicker] = useState<
-    "A" | "B" | null
-  >(null);
+  const [openLineupPicker, setOpenLineupPicker] = useState<"A" | "B" | null>(
+    null,
+  );
   const [replacementBaseId, setReplacementBaseId] = useState("");
   const [removePlayer, setRemovePlayer] = useState("");
   const [replacementPlayer, setReplacementPlayer] = useState("");
   const [replacementData, setReplacementData] =
     useState<ReplacementResponse | null>(null);
 
-  const [replacementLoading, setReplacementLoading] =
-    useState(false);
+  const [replacementLoading, setReplacementLoading] = useState(false);
+  const [corePlayers, setCorePlayers] = useState(["", "", "", ""]);
 
+  const [coreData, setCoreData] = useState<FourPlayerCoreResponse | null>(null);
+
+  const [coreLoading, setCoreLoading] = useState(false);
+  const [coreError, setCoreError] = useState("");
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/lineups?limit=250")
+    fetch(`${API_BASE_URL}/api/lineups?limit=250`)
       .then((response) => response.json())
       .then((result: LineupsResponse) => {
         setData(result);
@@ -97,16 +115,13 @@ function App() {
 
   const lineupA = useMemo(
     () => data?.lineups.find((lineup) => lineup.GROUP_ID === lineupAId),
-    [data, lineupAId]
+    [data, lineupAId],
   );
 
   const lineupB = useMemo(
     () => data?.lineups.find((lineup) => lineup.GROUP_ID === lineupBId),
-    [data, lineupBId]
+    [data, lineupBId],
   );
-
-
-
 
   const players = useMemo(() => {
     if (!data) return [];
@@ -122,36 +137,25 @@ function App() {
     return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
-
   const replacementBase = useMemo(
-    () =>
-      data?.lineups.find(
-        (lineup) => lineup.GROUP_ID === replacementBaseId
-      ),
-    [data, replacementBaseId]
+    () => data?.lineups.find((lineup) => lineup.GROUP_ID === replacementBaseId),
+    [data, replacementBaseId],
   );
 
   const replacementBasePlayers = useMemo(() => {
     if (!replacementBase) return [];
 
-    return replacementBase.GROUP_NAME
-      .split(" - ")
-      .map((player) => player.trim());
+    return replacementBase.GROUP_NAME.split(" - ").map((player) =>
+      player.trim(),
+    );
   }, [replacementBase]);
 
   const replacementCandidates = useMemo(() => {
-    return players.filter(
-      (player) => !replacementBasePlayers.includes(player)
-    );
+    return players.filter((player) => !replacementBasePlayers.includes(player));
   }, [players, replacementBasePlayers]);
 
   const replacementResult = useMemo(() => {
-    if (
-      !data ||
-      !replacementBase ||
-      !removePlayer ||
-      !replacementPlayer
-    ) {
+    if (!data || !replacementBase || !removePlayer || !replacementPlayer) {
       return null;
     }
 
@@ -162,15 +166,14 @@ function App() {
 
     return (
       data.lineups.find((lineup) => {
-        const lineupPlayers = lineup.GROUP_NAME
-          .split(" - ")
+        const lineupPlayers = lineup.GROUP_NAME.split(" - ")
           .map((player) => player.trim())
           .sort();
 
         return (
           lineupPlayers.length === targetPlayers.length &&
           lineupPlayers.every(
-            (player, index) => player === targetPlayers[index]
+            (player, index) => player === targetPlayers[index],
           )
         );
       }) ?? null
@@ -183,33 +186,20 @@ function App() {
     replacementPlayer,
   ]);
 
-
-  useEffect(() => {
-    setRemovePlayer("");
-    setReplacementPlayer("");
-  }, [replacementBaseId]);
-
-
   useEffect(() => {
     if (!replacementBaseId || !removePlayer) {
-      setReplacementData(null);
       return;
     }
-
     const params = new URLSearchParams({
       base_lineup_id: replacementBaseId,
       remove_player: removePlayer,
     });
 
-    setReplacementLoading(true);
-
-    fetch(
-      `http://127.0.0.1:8000/api/lineups/replacements?${params.toString()}`
-    )
+    fetch(`http://127.0.0.1:8000/api/lineups/replacements?${params.toString()}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(
-            `Replacement request failed with status ${response.status}`
+            `Replacement request failed with status ${response.status}`,
           );
         }
 
@@ -226,6 +216,57 @@ function App() {
         setReplacementLoading(false);
       });
   }, [replacementBaseId, removePlayer]);
+
+  const analyzeFourPlayerCore = () => {
+    const selectedPlayers = corePlayers.filter((player) => player !== "");
+
+    if (selectedPlayers.length !== 4) {
+      setCoreError("Choose four players before running the analysis.");
+      setCoreData(null);
+      return;
+    }
+
+    if (new Set(selectedPlayers).size !== 4) {
+      setCoreError("Choose four different players.");
+      setCoreData(null);
+      return;
+    }
+
+    const params = new URLSearchParams({
+      player_1: corePlayers[0],
+      player_2: corePlayers[1],
+      player_3: corePlayers[2],
+      player_4: corePlayers[3],
+    });
+
+    setCoreLoading(true);
+    setCoreError("");
+
+    fetch(
+      `http://127.0.0.1:8000/api/lineups/four-player-core?${params.toString()}`,
+    )
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Four-player core request failed with status ${response.status}`,
+          );
+        }
+
+        return response.json();
+      })
+      .then((result: FourPlayerCoreResponse) => {
+        setCoreData(result);
+      })
+      .catch((error) => {
+        console.error("Could not load four-player core analysis:", error);
+
+        setCoreData(null);
+        setCoreError("Could not load four-player core analysis.");
+      })
+      .finally(() => {
+        setCoreLoading(false);
+      });
+  };
 
   const comparisonMetrics = useMemo(() => {
     if (!lineupA || !lineupB) return [];
@@ -354,7 +395,7 @@ function App() {
     if (!lineupA || !lineupB) return null;
 
     const performanceMetrics = comparisonMetrics.filter(
-      (metric) => !metric.descriptiveOnly
+      (metric) => !metric.descriptiveOnly,
     );
 
     let lineupAWins = 0;
@@ -385,16 +426,13 @@ function App() {
     };
   }, [comparisonMetrics, lineupA, lineupB]);
 
-
   const leaderboard = useMemo(() => {
     if (!data) return [];
 
-
-
     const filtered = data.lineups.filter((lineup) => {
-      const lineupPlayers = lineup.GROUP_NAME
-        .split(" - ")
-        .map((player) => player.trim());
+      const lineupPlayers = lineup.GROUP_NAME.split(" - ").map((player) =>
+        player.trim(),
+      );
 
       const meetsMinutes = lineup.MIN >= minimumMinutes;
       const meetsGames = lineup.GP >= minimumGames;
@@ -405,12 +443,7 @@ function App() {
       const excludesPlayer =
         excludePlayer === "" || !lineupPlayers.includes(excludePlayer);
 
-      return (
-        meetsMinutes &&
-        meetsGames &&
-        includesPlayer &&
-        excludesPlayer
-      );
+      return meetsMinutes && meetsGames && includesPlayer && excludesPlayer;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -446,8 +479,6 @@ function App() {
     includePlayer,
     excludePlayer,
   ]);
-
-
 
   if (loading) {
     return <main className="app-shell">Loading RotationLab...</main>;
@@ -491,9 +522,7 @@ function App() {
             onSelect={setLineupAId}
             isOpen={openLineupPicker === "A"}
             onToggle={() =>
-              setOpenLineupPicker((current) =>
-                current === "A" ? null : "A"
-              )
+              setOpenLineupPicker((current) => (current === "A" ? null : "A"))
             }
             onClose={() => setOpenLineupPicker(null)}
           />
@@ -505,9 +534,7 @@ function App() {
             onSelect={setLineupBId}
             isOpen={openLineupPicker === "B"}
             onToggle={() =>
-              setOpenLineupPicker((current) =>
-                current === "B" ? null : "B"
-              )
+              setOpenLineupPicker((current) => (current === "B" ? null : "B"))
             }
             onClose={() => setOpenLineupPicker(null)}
           />
@@ -581,17 +608,19 @@ function App() {
                   <p className="eyebrow">Comparison Profile</p>
 
                   <h3>
-                    {comparisonSummary.lineupAWins > comparisonSummary.lineupBWins
+                    {comparisonSummary.lineupAWins >
+                    comparisonSummary.lineupBWins
                       ? "Lineup A leads across more measured categories"
-                      : comparisonSummary.lineupBWins > comparisonSummary.lineupAWins
+                      : comparisonSummary.lineupBWins >
+                          comparisonSummary.lineupAWins
                         ? "Lineup B leads across more measured categories"
                         : "The lineups split the measured categories evenly"}
                   </h3>
 
                   <p className="summary-note">
-                    This is a descriptive comparison of the selected metrics, not an
-                    overall lineup ranking. Sample size and game context should also be
-                    considered.
+                    This is a descriptive comparison of the selected metrics,
+                    not an overall lineup ranking. Sample size and game context
+                    should also be considered.
                   </p>
                 </div>
 
@@ -681,7 +710,6 @@ function App() {
                 </select>
               </label>
 
-
               <label>
                 <span>Include Player</span>
                 <select
@@ -713,8 +741,6 @@ function App() {
                   ))}
                 </select>
               </label>
-
-
             </div>
 
             <div className="leaderboard-table">
@@ -732,13 +758,9 @@ function App() {
 
               {leaderboard.map((lineup, index) => (
                 <div className="leaderboard-row" key={lineup.GROUP_ID}>
-                  <span className="leaderboard-rank">
-                    {index + 1}
-                  </span>
+                  <span className="leaderboard-rank">{index + 1}</span>
 
-                  <span className="leaderboard-name">
-                    {lineup.GROUP_NAME}
-                  </span>
+                  <span className="leaderboard-name">{lineup.GROUP_NAME}</span>
 
                   <span>{lineup.MIN.toFixed(1)}</span>
 
@@ -761,9 +783,7 @@ function App() {
                     {lineup.NET_RATING.toFixed(1)}
                   </span>
 
-                  <span>
-                    {(lineup.TS_PCT * 100).toFixed(1)}%
-                  </span>
+                  <span>{(lineup.TS_PCT * 100).toFixed(1)}%</span>
 
                   <div className="leaderboard-actions">
                     <button
@@ -780,7 +800,6 @@ function App() {
                       Set as B
                     </button>
                   </div>
-
                 </div>
               ))}
 
@@ -807,8 +826,8 @@ function App() {
 
             <p className="replacement-intro">
               Replace one player in an observed five-man unit and compare it
-              with the matching lineup, if that combination has appeared in
-              the loaded NBA data.
+              with the matching lineup, if that combination has appeared in the
+              loaded NBA data.
             </p>
 
             <div className="replacement-controls">
@@ -816,9 +835,12 @@ function App() {
                 <span>Base Lineup</span>
                 <select
                   value={replacementBaseId}
-                  onChange={(event) =>
-                    setReplacementBaseId(event.target.value)
-                  }
+                  onChange={(event) => {
+                    setReplacementBaseId(event.target.value);
+                    setRemovePlayer("");
+                    setReplacementPlayer("");
+                    setReplacementData(null);
+                  }}
                 >
                   {data.lineups.map((lineup) => (
                     <option key={lineup.GROUP_ID} value={lineup.GROUP_ID}>
@@ -832,9 +854,12 @@ function App() {
                 <span>Remove Player</span>
                 <select
                   value={removePlayer}
-                  onChange={(event) =>
-                    setRemovePlayer(event.target.value)
-                  }
+                  onChange={(event) => {
+                    setRemovePlayer(event.target.value);
+                    setReplacementPlayer("");
+                    setReplacementData(null);
+                    setReplacementLoading(true);
+                  }}
                 >
                   <option value="">Choose player...</option>
 
@@ -850,9 +875,7 @@ function App() {
                 <span>Add Player</span>
                 <select
                   value={replacementPlayer}
-                  onChange={(event) =>
-                    setReplacementPlayer(event.target.value)
-                  }
+                  onChange={(event) => setReplacementPlayer(event.target.value)}
                 >
                   <option value="">Choose replacement...</option>
 
@@ -865,18 +888,13 @@ function App() {
               </label>
             </div>
 
-
             {replacementBase && removePlayer && (
               <div className="replacement-discovery">
                 <div className="replacement-discovery-header">
                   <div>
-                    <p className="eyebrow">
-                      Observed Alternatives
-                    </p>
+                    <p className="eyebrow">Observed Alternatives</p>
 
-                    <h3>
-                      Replacement Options for {removePlayer}
-                    </h3>
+                    <h3>Replacement Options for {removePlayer}</h3>
                   </div>
 
                   <span className="sample-count">
@@ -884,22 +902,19 @@ function App() {
                   </span>
                 </div>
 
-                  {replacementLoading ? (
-                    <div className="replacement-empty">
-                      Loading replacement options...
-                    </div>
-                  ) : replacementData && replacementData.replacements.length > 0 ? (
-                    <div className="replacement-options">
-                      {replacementData.replacements.map(
+                {replacementLoading ? (
+                  <div className="replacement-empty">
+                    Loading replacement options...
+                  </div>
+                ) : replacementData &&
+                  replacementData.replacements.length > 0 ? (
+                  <div className="replacement-options">
+                    {replacementData.replacements.map(
                       (
-                        {
-                          lineup,
-                          replacement_player: candidatePlayer,
-                        },
-                        index
+                        { lineup, replacement_player: candidatePlayer },
+                        index,
                       ) => {
-                        const reliability =
-                          getReliability(lineup.MIN);
+                        const reliability = getReliability(lineup.MIN);
 
                         return (
                           <div
@@ -921,16 +936,12 @@ function App() {
 
                             <div className="replacement-option-metric">
                               <span>ORTG</span>
-                              <strong>
-                                {lineup.OFF_RATING.toFixed(1)}
-                              </strong>
+                              <strong>{lineup.OFF_RATING.toFixed(1)}</strong>
                             </div>
 
                             <div className="replacement-option-metric">
                               <span>DRTG</span>
-                              <strong>
-                                {lineup.DEF_RATING.toFixed(1)}
-                              </strong>
+                              <strong>{lineup.DEF_RATING.toFixed(1)}</strong>
                             </div>
 
                             <div className="replacement-option-metric">
@@ -944,9 +955,7 @@ function App() {
                                       : ""
                                 }
                               >
-                                {lineup.NET_RATING > 0
-                                  ? "+"
-                                  : ""}
+                                {lineup.NET_RATING > 0 ? "+" : ""}
                                 {lineup.NET_RATING.toFixed(1)}
                               </strong>
                             </div>
@@ -955,129 +964,254 @@ function App() {
                               type="button"
                               className="replacement-option-button"
                               onClick={() =>
-                                setReplacementPlayer(
-                                  candidatePlayer
-                                )
+                                setReplacementPlayer(candidatePlayer)
                               }
                             >
                               Compare
                             </button>
                           </div>
                         );
-                      }
+                      },
                     )}
                   </div>
                 ) : (
                   <div className="replacement-empty">
-                    No observed replacement lineups were
-                    found for the selected player.
+                    No observed replacement lineups were found for the selected
+                    player.
                   </div>
                 )}
 
                 <p className="replacement-note">
-                  Options are ranked by observed Net
-                  Rating. Rankings are descriptive and
-                  should be interpreted alongside minutes
-                  and sample reliability.
+                  Options are ranked by observed Net Rating. Rankings are
+                  descriptive and should be interpreted alongside minutes and
+                  sample reliability.
                 </p>
               </div>
             )}
 
-
-
-            {replacementBase &&
-              removePlayer &&
-              replacementPlayer && (
-                <div className="replacement-result">
-                  <div className="replacement-change">
-                    <span>{removePlayer}</span>
-                    <strong>→</strong>
-                    <span>{replacementPlayer}</span>
-                  </div>
-
-                  {replacementResult ? (
-                    <>
-                      <div className="replacement-lineups">
-                        <div>
-                          <p className="eyebrow">Original Unit</p>
-                          <h3>{replacementBase.GROUP_NAME}</h3>
-                          <span>
-                            {replacementBase.MIN.toFixed(1)} minutes
-                          </span>
-                        </div>
-
-                        <div>
-                          <p className="eyebrow">Observed Replacement Unit</p>
-                          <h3>{replacementResult.GROUP_NAME}</h3>
-                          <span>
-                            {replacementResult.MIN.toFixed(1)} minutes
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="replacement-metrics">
-                        <ReplacementMetric
-                          label="Off Rating"
-                          before={replacementBase.OFF_RATING}
-                          after={replacementResult.OFF_RATING}
-                          lowerIsBetter={false}
-                        />
-
-                        <ReplacementMetric
-                          label="Def Rating"
-                          before={replacementBase.DEF_RATING}
-                          after={replacementResult.DEF_RATING}
-                          lowerIsBetter={true}
-                        />
-
-                        <ReplacementMetric
-                          label="Net Rating"
-                          before={replacementBase.NET_RATING}
-                          after={replacementResult.NET_RATING}
-                          lowerIsBetter={false}
-                        />
-
-                        <ReplacementMetric
-                          label="Minutes"
-                          before={replacementBase.MIN}
-                          after={replacementResult.MIN}
-                          lowerIsBetter={false}
-                          descriptive
-                        />
-                      </div>
-
-                      <p className="replacement-note">
-                        This compares two observed lineup samples. It does not
-                        establish that the player substitution caused the
-                        difference in performance.
-                      </p>
-                    </>
-                  ) : (
-                    <div className="replacement-empty">
-                      No observed lineup containing this exact replacement
-                      combination was found in the loaded data.
-                    </div>
-                  )}
+            {replacementBase && removePlayer && replacementPlayer && (
+              <div className="replacement-result">
+                <div className="replacement-change">
+                  <span>{removePlayer}</span>
+                  <strong>→</strong>
+                  <span>{replacementPlayer}</span>
                 </div>
-              )}
+
+                {replacementResult ? (
+                  <>
+                    <div className="replacement-lineups">
+                      <div>
+                        <p className="eyebrow">Original Unit</p>
+                        <h3>{replacementBase.GROUP_NAME}</h3>
+                        <span>{replacementBase.MIN.toFixed(1)} minutes</span>
+                      </div>
+
+                      <div>
+                        <p className="eyebrow">Observed Replacement Unit</p>
+                        <h3>{replacementResult.GROUP_NAME}</h3>
+                        <span>{replacementResult.MIN.toFixed(1)} minutes</span>
+                      </div>
+                    </div>
+
+                    <div className="replacement-metrics">
+                      <ReplacementMetric
+                        label="Off Rating"
+                        before={replacementBase.OFF_RATING}
+                        after={replacementResult.OFF_RATING}
+                        lowerIsBetter={false}
+                      />
+
+                      <ReplacementMetric
+                        label="Def Rating"
+                        before={replacementBase.DEF_RATING}
+                        after={replacementResult.DEF_RATING}
+                        lowerIsBetter={true}
+                      />
+
+                      <ReplacementMetric
+                        label="Net Rating"
+                        before={replacementBase.NET_RATING}
+                        after={replacementResult.NET_RATING}
+                        lowerIsBetter={false}
+                      />
+
+                      <ReplacementMetric
+                        label="Minutes"
+                        before={replacementBase.MIN}
+                        after={replacementResult.MIN}
+                        lowerIsBetter={false}
+                        descriptive
+                      />
+                    </div>
+
+                    <p className="replacement-note">
+                      This compares two observed lineup samples. It does not
+                      establish that the player substitution caused the
+                      difference in performance.
+                    </p>
+                  </>
+                ) : (
+                  <div className="replacement-empty">
+                    No observed lineup containing this exact replacement
+                    combination was found in the loaded data.
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
+          <section className="panel replacement-panel">
+            <div className="panel-header">
+              <div>
+                <p className="eyebrow">Rotation Analysis</p>
+                <h2>Four-Player Core Analysis</h2>
+              </div>
+
+              {coreData && (
+                <span className="sample-count">
+                  {coreData.count} fifth-player options
+                </span>
+              )}
+            </div>
+
+            <p className="replacement-intro">
+              Select four players to find every observed five-man lineup
+              containing that core. Fifth-player options are ranked by observed
+              Net Rating.
+            </p>
+
+            <div className="replacement-controls">
+              {corePlayers.map((selectedPlayer, index) => (
+                <label key={index}>
+                  <span>Player {index + 1}</span>
+
+                  <select
+                    value={selectedPlayer}
+                    onChange={(event) => {
+                      const nextPlayers = [...corePlayers];
+                      nextPlayers[index] = event.target.value;
+
+                      setCorePlayers(nextPlayers);
+                      setCoreData(null);
+                      setCoreError("");
+                    }}
+                  >
+                    <option value="">Choose player...</option>
+
+                    {players.map((player) => (
+                      <option
+                        key={player}
+                        value={player}
+                        disabled={
+                          corePlayers.includes(player) &&
+                          selectedPlayer !== player
+                        }
+                      >
+                        {player}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              className="core-analyze-button"
+              onClick={analyzeFourPlayerCore}
+              disabled={coreLoading}
+            >
+              {coreLoading ? "Analyzing..." : "Analyze Core"}
+            </button>
+
+            {coreError && <div className="replacement-empty">{coreError}</div>}
+
+            {coreData && !coreLoading && (
+              <div className="replacement-discovery">
+                <div className="replacement-discovery-header">
+                  <div>
+                    <p className="eyebrow">Observed Fifth Players</p>
+                    <h3>Best Observed Five-Man Combinations</h3>
+                  </div>
+
+                  <span className="sample-count">
+                    {coreData.count} options found
+                  </span>
+                </div>
+
+                {coreData.lineups.length > 0 ? (
+                  <div className="replacement-options">
+                    {coreData.lineups.map(({ fifth_player, lineup }, index) => {
+                      const reliability = getReliability(lineup.MIN);
+
+                      return (
+                        <div
+                          className="replacement-option core-result-row"
+                          key={`${lineup.GROUP_ID}-${fifth_player}`}
+                        >
+                          <div className="replacement-option-rank">
+                            #{index + 1}
+                          </div>
+
+                          <div className="replacement-option-player">
+                            <strong>{fifth_player}</strong>
+                            <span>
+                              {lineup.MIN.toFixed(1)} MIN • {reliability.label}{" "}
+                              reliability
+                            </span>
+                          </div>
+
+                          <div className="replacement-option-metric">
+                            <span>ORTG</span>
+                            <strong>{lineup.OFF_RATING.toFixed(1)}</strong>
+                          </div>
+
+                          <div className="replacement-option-metric">
+                            <span>DRTG</span>
+                            <strong>{lineup.DEF_RATING.toFixed(1)}</strong>
+                          </div>
+
+                          <div className="replacement-option-metric">
+                            <span>NET</span>
+                            <strong
+                              className={
+                                lineup.NET_RATING > 0
+                                  ? "positive-rating"
+                                  : lineup.NET_RATING < 0
+                                    ? "negative-rating"
+                                    : ""
+                              }
+                            >
+                              {lineup.NET_RATING > 0 ? "+" : ""}
+                              {lineup.NET_RATING.toFixed(1)}
+                            </strong>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="replacement-empty">
+                    No observed five-man lineups were found for this four-player
+                    core.
+                  </div>
+                )}
+
+                <p className="replacement-note">
+                  Results are ranked by observed Net Rating. Minutes and sample
+                  reliability should be considered when comparing fifth-player
+                  options.
+                </p>
+              </div>
+            )}
+          </section>
         </>
       )}
     </main>
   );
 }
 
-
-
-
-function LineupCard({
-  title,
-  lineup,
-}: {
-  title: string;
-  lineup: Lineup;
-}) {
+function LineupCard({ title, lineup }: { title: string; lineup: Lineup }) {
   const reliability = getReliability(lineup.MIN);
   return (
     <article className="lineup-card">
@@ -1086,7 +1220,9 @@ function LineupCard({
 
       <div className={`reliability-badge ${reliability.className}`}>
         <span>{reliability.label} reliability</span>
-        <small>{reliability.note} • {lineup.MIN.toFixed(1)} minutes</small>
+        <small>
+          {reliability.note} • {lineup.MIN.toFixed(1)} minutes
+        </small>
       </div>
 
       <div className="metrics">
@@ -1126,7 +1262,6 @@ function LineupCard({
   );
 }
 
-
 function LineupPicker({
   label,
   lineups,
@@ -1148,7 +1283,7 @@ function LineupPicker({
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const selectedLineup = lineups.find(
-    (lineup) => lineup.GROUP_ID === selectedId
+    (lineup) => lineup.GROUP_ID === selectedId,
   );
 
   const filteredLineups = useMemo(() => {
@@ -1159,7 +1294,7 @@ function LineupPicker({
     }
 
     return lineups.filter((lineup) =>
-      lineup.GROUP_NAME.toLowerCase().includes(query)
+      lineup.GROUP_NAME.toLowerCase().includes(query),
     );
   }, [lineups, search]);
 
@@ -1181,10 +1316,7 @@ function LineupPicker({
     document.addEventListener("mousedown", handleOutsideClick);
 
     return () => {
-      document.removeEventListener(
-        "mousedown",
-        handleOutsideClick
-      );
+      document.removeEventListener("mousedown", handleOutsideClick);
     };
   }, [isOpen, onClose]);
 
@@ -1198,14 +1330,10 @@ function LineupPicker({
         onClick={onToggle}
       >
         <span>
-          {selectedLineup
-            ? selectedLineup.GROUP_NAME
-            : "Select a lineup"}
+          {selectedLineup ? selectedLineup.GROUP_NAME : "Select a lineup"}
         </span>
 
-        <span className="lineup-picker-arrow">
-          {isOpen ? "▲" : "▼"}
-        </span>
+        <span className="lineup-picker-arrow">{isOpen ? "▲" : "▼"}</span>
       </button>
 
       {isOpen && (
@@ -1227,10 +1355,11 @@ function LineupPicker({
                 <button
                   type="button"
                   key={lineup.GROUP_ID}
-                  className={`lineup-picker-option ${lineup.GROUP_ID === selectedId
+                  className={`lineup-picker-option ${
+                    lineup.GROUP_ID === selectedId
                       ? "lineup-picker-option-selected"
                       : ""
-                    }`}
+                  }`}
                   onClick={() => {
                     onSelect(lineup.GROUP_ID);
                     setSearch("");
@@ -1254,9 +1383,7 @@ function LineupPicker({
             })}
 
             {filteredLineups.length === 0 && (
-              <div className="lineup-picker-empty">
-                No matching lineups.
-              </div>
+              <div className="lineup-picker-empty">No matching lineups.</div>
             )}
           </div>
         </div>
@@ -1264,7 +1391,6 @@ function LineupPicker({
     </div>
   );
 }
-
 
 function ReplacementMetric({
   label,
@@ -1321,14 +1447,7 @@ function ReplacementMetric({
   );
 }
 
-
-function Metric({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="metric">
       <span>{label}</span>
@@ -1337,11 +1456,9 @@ function Metric({
   );
 }
 
-
 function per36(value: number, minutes: number) {
   return minutes > 0 ? (value / minutes) * 36 : 0;
 }
-
 
 function getReliability(minutes: number) {
   if (minutes >= 100) {
