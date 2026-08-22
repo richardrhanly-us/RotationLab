@@ -2,12 +2,35 @@ from pathlib import Path
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+
+import os
+
+
 from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI(
     title="RotationLab API",
     version="0.1.0",
+)
+
+
+frontend_origin = os.getenv(
+    "FRONTEND_ORIGIN",
+    "http://localhost:5173",
+)
+
+allowed_origins = [
+    "http://localhost:5173",
+    frontend_origin,
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.add_middleware(
