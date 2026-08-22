@@ -1,85 +1,38 @@
 # RotationLab
 
-RotationLab is an NBA lineup and rotation analysis application designed to support basketball operations workflows.
+RotationLab is a full-stack NBA lineup and rotation analysis application built to support basketball operations-style decision making.
 
-The project focuses on five-man lineup performance, lineup comparison, sample reliability, player filtering, replacement analysis, and rotation decision support. It uses NBA lineup data to help identify which units have performed well, how different combinations compare, and where small sample sizes may make conclusions less reliable.
+The current version focuses on the Oklahoma City Thunder and the 2025-26 NBA season. It combines five-man lineup data, advanced efficiency metrics, player-level filtering, replacement analysis, and four-player core analysis in a React interface backed by FastAPI.
 
-The current version uses the Oklahoma City Thunder as the default team and the 2025-26 NBA season as the initial dataset.
+## Live Demo
+
+- Frontend: https://rotation-lab.vercel.app
+- API: https://rotationlab-api.onrender.com
+- API docs: https://rotationlab-api.onrender.com/docs
+
+> The backend is hosted on Render's free tier and may take a short time to wake after a period of inactivity.
 
 ## Current Features
 
-### Five-Man Lineup Explorer
+### Overview Dashboard
 
-RotationLab loads five-man lineup data and allows two units to be selected for direct comparison.
+The Overview page provides a clean entry point into RotationLab's four main analysis workflows:
 
-The application currently loads up to 250 five-man lineup observations.
+- Lineup Comparison
+- Lineup Leaderboard
+- Player Replacement Analysis
+- Four-Player Core Analysis
 
-Each lineup includes:
+The interface uses an Oklahoma City-inspired visual system with shared team branding, navigation, and responsive page layouts.
 
+### Lineup Comparison
+
+Compare any two observed five-man units side by side.
+
+The comparison includes:
+
+- Minutes
 - Games played
-- Minutes
-- Win percentage
-- Field goal percentage
-- Three-point percentage
-- Rebounds
-- Assists
-- Turnovers
-- Points
-- Plus/minus
-
-### Searchable Lineup Picker
-
-Lineup A and Lineup B are selected through searchable lineup pickers rather than long native dropdown lists.
-
-Each lineup result displays:
-
-- The five players in the lineup
-- Total minutes
-- Net Rating
-
-Users can search by player name to quickly locate relevant units.
-
-The picker also supports:
-
-- Closing when clicking outside the picker
-- Automatically closing Lineup A when Lineup B is opened
-- Automatically closing Lineup B when Lineup A is opened
-
-### Advanced Lineup Metrics
-
-The application incorporates advanced NBA lineup metrics including:
-
-- Offensive Rating
-- Defensive Rating
-- Net Rating
-- Pace
-- True Shooting Percentage
-- Effective Field Goal Percentage
-- Assist Percentage
-- Assist-to-Turnover Ratio
-- Rebound Percentage
-
-These metrics allow comparisons to focus on lineup efficiency rather than raw totals alone.
-
-### Sample Reliability
-
-Each lineup is assigned a simple reliability indicator based on total minutes played.
-
-Current thresholds:
-
-- High reliability: 100+ minutes
-- Medium reliability: 40-99.9 minutes
-- Low reliability: under 40 minutes
-
-This makes small-sample lineup results easier to identify when evaluating performance.
-
-### Head-to-Head Comparison
-
-Two selected lineups can be compared across traditional and advanced metrics.
-
-The comparison currently includes:
-
-- Minutes
 - Win percentage
 - Field goal percentage
 - Three-point percentage
@@ -96,18 +49,54 @@ The comparison currently includes:
 - Blocks per 36 minutes
 - Plus/minus per 36 minutes
 
-Metric winners are highlighted while descriptive metrics such as pace and minutes are not treated as inherently better or worse.
+Metric leaders are highlighted while descriptive metrics such as pace and minutes are not treated as inherently better or worse.
 
-The application also summarizes how many measured categories each lineup leads while explicitly avoiding treating that count as an overall lineup ranking.
+The comparison view also includes:
+
+- Searchable lineup selection
+- Player headshots derived from NBA player IDs
+- Sample reliability indicators
+- A category summary showing which lineup leads across the selected performance metrics
+
+### Searchable Lineup Picker
+
+Long native dropdowns are replaced with a custom searchable lineup picker.
+
+Each lineup option surfaces:
+
+- The five players in the unit
+- Minutes played
+- Net Rating
+
+This makes it practical to work with a dataset containing up to 250 observed five-man lineups without navigating a wall of text.
+
+### Searchable Player Picker
+
+RotationLab also includes a reusable player picker for player-specific controls.
+
+The component supports:
+
+- Search
+- Disabled players when duplicate selections are not allowed
+- Optional empty states such as "Any player"
+- Outside-click closing
+- Shared styling across analysis workflows
 
 ### Lineup Leaderboard
 
-RotationLab includes a filterable five-man lineup leaderboard.
+The leaderboard ranks and filters observed five-man lineups.
 
-Users can filter and rank lineups by:
+Available controls include:
 
 - Minimum minutes
 - Minimum games
+- Sort metric
+- Top 5, 10, or 20 lineups
+- Include player
+- Exclude player
+
+Supported sort metrics include:
+
 - Net Rating
 - Offensive Rating
 - Defensive Rating
@@ -115,188 +104,125 @@ Users can filter and rank lineups by:
 - Win percentage
 - True Shooting Percentage
 
-The leaderboard can display the top 5, 10, or 20 qualifying units.
+Each row also includes controls for sending a lineup directly into the comparison workflow as Lineup A or Lineup B.
 
-### Player Include / Exclude Filters
+### Sample Reliability
 
-The leaderboard supports player-specific filtering.
+Each lineup is assigned a simple reliability label based on total observed minutes:
 
-Users can:
+- **High:** 100+ minutes
+- **Medium:** 40-99.9 minutes
+- **Low:** under 40 minutes
 
-- Show only lineups containing a selected player
-- Exclude lineups containing a selected player
-- Combine include and exclude filters
-- Apply player filters together with minimum-minute and minimum-game thresholds
-
-The player lists are generated directly from the loaded lineup data.
-
-### Leaderboard-to-Comparison Workflow
-
-Each leaderboard row includes:
-
-- Set as A
-- Set as B
-
-This allows an analyst to identify an interesting unit in the leaderboard and immediately send it into the head-to-head comparison workflow.
+The reliability indicator is intended to keep small-sample results visible during analysis rather than treating all lineup statistics as equally trustworthy.
 
 ### Player Replacement Analysis
 
-RotationLab includes an observed player replacement analysis tool.
+The replacement workflow evaluates observed alternatives to an existing five-man unit.
 
-The workflow allows a user to:
+A user can:
 
-1. Select a base five-man lineup
-2. Select one player to remove
-3. Select a replacement player
-4. Search the loaded NBA lineup data for the exact resulting five-man combination
-5. Compare the original lineup against the observed replacement lineup
+1. Select a base lineup.
+2. Select one player to remove.
+3. Inspect automatically discovered fifth-player alternatives.
+4. Rank those alternatives by observed Net Rating.
+5. Select a replacement.
+6. Compare the original lineup with the observed replacement lineup.
 
-The detailed comparison currently includes:
-
-- Offensive Rating
-- Defensive Rating
-- Net Rating
-- Minutes
-
-Changes are visually classified as improvements, declines, or descriptive differences.
-
-The analysis intentionally treats the results as observational rather than causal.
-
-### Replacement Discovery
-
-RotationLab can also automatically discover replacement options rather than requiring the user to guess which player to test.
-
-After selecting a base lineup and a player to remove, the application:
-
-1. Keeps the remaining four players fixed
-2. Searches the loaded lineup data for observed five-man units containing those same four players
-3. Identifies the fifth player used in each observed replacement lineup
-4. Removes duplicate replacement observations by retaining the largest-minute sample
-5. Ranks the replacement options by observed Net Rating
-
-Each discovered option displays:
+Each discovered replacement displays:
 
 - Replacement player
+- Player headshot
 - Minutes
-- Sample reliability
+- Reliability
 - Offensive Rating
 - Defensive Rating
 - Net Rating
 
-A Compare button sends the selected replacement directly into the detailed before-and-after replacement analysis.
+The detailed comparison shows changes in:
 
-Replacement rankings are descriptive and should be interpreted alongside sample size and game context.
-
-## Planned Features
-
-RotationLab is being developed toward a broader basketball operations decision-support workflow.
-
-### Rotation and Substitution Analysis
-
-A future goal is to support rotation-level analysis rather than only season aggregate lineup statistics.
-
-Planned areas include:
-
-- Substitution pattern analysis
-- Rotation sequencing
-- Lineup stint analysis
-- Bench-unit performance
-- Starter and reserve combinations
-- Game-level rotation timelines
-
-### Play-by-Play Lineup Reconstruction
-
-A major planned engineering feature is reconstructing on-court lineups from NBA play-by-play and substitution data.
-
-Instead of relying only on pre-aggregated lineup endpoints, RotationLab will eventually derive lineup stints directly from game events.
-
-This will enable analysis of:
-
-- Who was on the court during each possession or stint
-- When substitutions occurred
-- How long individual lineup combinations remained together
-- Score differential during each stint
-- Possession-level lineup performance
-
-### Possession-Based Metrics
-
-Future versions will move beyond per-36 normalization and support possession-based analysis such as:
-
-- Points per 100 possessions
-- Offensive Rating derived from possessions
-- Defensive Rating derived from possessions
+- Offensive Rating
+- Defensive Rating
 - Net Rating
-- Pace
-- Turnover rate
-- Rebounding rate
-- Shot profile metrics
+- Minutes
 
-### Sample-Size and Confidence Analysis
+Replacement results are presented as observational rather than causal.
 
-The current reliability indicator is intentionally simple.
+### Four-Player Core Analysis
 
-Future versions may incorporate more rigorous approaches such as:
+The four-player core tool answers a different rotation question:
 
-- Minimum possession thresholds
-- Confidence intervals
-- Regression toward team averages
-- Shrinkage for small lineup samples
-- Sample-size warnings
+> If these four players stay on the floor together, which observed fifth players have produced the strongest five-man units?
 
-### Multi-Team Support
+The user selects four players and RotationLab searches the observed lineup dataset for matching five-man units.
 
-The current dataset is focused on Oklahoma City.
+Results are ranked by Net Rating and display:
 
-Future versions are planned to support:
+- Fifth player
+- Player headshot
+- Minutes
+- Reliability
+- Offensive Rating
+- Defensive Rating
+- Net Rating
 
-- Team selection
-- Season selection
-- Cross-team lineup analysis
-- Historical seasons
+The tool prevents duplicate player selections and keeps the four-player core fixed while evaluating observed fifth-player combinations.
 
-### Data Persistence
+### NBA Player Identity and Headshots
 
-The current development version reads processed lineup data from CSV.
+NBA player IDs are derived directly from each lineup's `GROUP_ID` and matched to the corresponding position in `GROUP_NAME`.
 
-A future version is planned to use PostgreSQL for persistent storage of:
+This avoids relying on abbreviated player names alone. That is especially important for ambiguous names such as `J. Williams`, which can represent different Oklahoma City players.
 
-- Teams
-- Players
-- Games
-- Lineups
-- Lineup stints
-- Possessions
-- Advanced metrics
+Official NBA CDN headshots are then rendered from the resolved player IDs.
 
-### Backend Analytics API
+## Backend API
 
-RotationLab now moves meaningful lineup analysis logic into the FastAPI backend rather than keeping all analytics calculations in the React client.
+RotationLab moves lineup discovery and analysis logic into FastAPI rather than keeping all calculations in the React client.
 
-Current API capabilities include:
+Current routes:
+
+```text
+GET /
+GET /api/lineups
+GET /api/lineups/compare
+GET /api/lineups/replacements
+GET /api/lineups/four-player-core
+```
+
+Current backend capabilities include:
 
 - Five-man lineup retrieval
-- Lineup comparison
-- Player replacement discovery
+- Lineup comparison support
+- Replacement discovery
 - Replacement-option ranking
+- Four-player core discovery
+- Fifth-player ranking
 
-The replacement discovery endpoint accepts a base lineup and a player to remove, then:
+## Automated Tests
 
-1. Identifies the remaining four-player core
-2. Searches the full lineup dataset for observed alternatives
-3. Identifies the replacement player in each matching unit
-4. Deduplicates repeated replacement observations using the largest-minute sample
-5. Ranks the observed options by Net Rating
+The project includes automated API and analytics tests covering:
 
-The React frontend requests these results from FastAPI and uses the returned data to populate the replacement discovery interface.
+- API health
+- Lineup retrieval
+- Lineup sorting
+- Replacement discovery
+- Replacement validation
+- Four-player core discovery
+- Duplicate-player validation
+- Fifth-player correctness
 
-Future API expansion may include:
+Current test suite:
 
-- Leaderboard filtering
-- Player lookup
-- Lineup lookup
-- Rotation analysis
-- Game-level lineup data
-- Stint analysis
+```text
+12 passed
+```
+
+Run the full suite with:
+
+```powershell
+pytest
+```
 
 ## Technology Stack
 
@@ -305,6 +231,7 @@ Future API expansion may include:
 - React
 - TypeScript
 - Vite
+- React Router
 - CSS
 
 ### Backend
@@ -316,13 +243,21 @@ Future API expansion may include:
 
 ### NBA Data
 
-- nba_api
+- `nba_api`
 - NBA Stats lineup endpoints
+- NBA player IDs
+- NBA CDN player headshots
 
-### Planned Data Layer
+### Testing
 
-- PostgreSQL
-- SQLAlchemy
+- pytest
+- FastAPI `TestClient`
+- httpx
+
+### Deployment
+
+- Vercel — frontend
+- Render — FastAPI backend
 
 ## Project Structure
 
@@ -333,24 +268,78 @@ RotationLab/
 ├── data/
 │   └── okc_lineups_2025_26.csv
 ├── frontend/
+│   ├── public/
+│   │   └── logos/
+│   │       └── okc-logo.png
 │   ├── src/
+│   │   ├── components/
+│   │   │   ├── AppNav.tsx
+│   │   │   ├── LineupCard.tsx
+│   │   │   ├── LineupPicker.tsx
+│   │   │   ├── PlayerAvatar.tsx
+│   │   │   ├── PlayerPicker.tsx
+│   │   │   └── TeamBadge.tsx
+│   │   ├── pages/
+│   │   │   ├── ComparePage.tsx
+│   │   │   ├── FourPlayerCorePage.tsx
+│   │   │   ├── LeaderboardPage.tsx
+│   │   │   └── ReplacementPage.tsx
+│   │   ├── types/
+│   │   │   └── lineup.ts
+│   │   ├── utils/
+│   │   │   └── lineupPlayers.ts
+│   │   ├── App.css
 │   │   ├── App.tsx
-│   │   └── App.css
+│   │   └── main.tsx
+│   ├── .env.example
 │   └── package.json
 ├── scripts/
 │   └── test_okc_lineups.py
+├── tests/
+│   ├── test_api.py
+│   ├── test_four_player_core.py
+│   └── test_replacements.py
 ├── .gitignore
-└── README.md
+├── README.md
+└── requirements.txt
 ```
 
 ## Running the Project Locally
 
-### Backend
+### 1. Clone and enter the project
+
+```powershell
+git clone https://github.com/richardrhanly-us/RotationLab.git
+cd RotationLab
+```
+
+### 2. Create the Python environment
+
+```powershell
+py -3.11 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+```
+
+### 3. Configure the frontend environment
+
+Create:
+
+```text
+frontend/.env
+```
+
+with:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+### 4. Start the backend
 
 From the project root:
 
 ```powershell
-.\.venv\Scripts\Activate.ps1
 python -m uvicorn backend.main:app --reload
 ```
 
@@ -366,12 +355,13 @@ FastAPI documentation:
 http://127.0.0.1:8000/docs
 ```
 
-### Frontend
+### 5. Start the frontend
 
 Open a second terminal:
 
 ```powershell
 cd frontend
+npm install
 npm run dev
 ```
 
@@ -383,54 +373,92 @@ http://localhost:5173
 
 ## Data Pipeline
 
-The current data ingestion script retrieves Oklahoma City five-man lineup data from NBA Stats using `nba_api`.
+The current ingestion workflow retrieves Oklahoma City five-man lineup data from NBA Stats using `nba_api`.
 
-The pipeline retrieves both base and advanced lineup statistics and combines them into the processed dataset used by the application.
-
-Run:
-
-```powershell
-python scripts\test_okc_lineups.py
-```
-
-The processed dataset is written to:
+The pipeline combines traditional and advanced lineup statistics into:
 
 ```text
 data/okc_lineups_2025_26.csv
 ```
 
-The FastAPI backend reads this dataset and exposes it to the React frontend.
+Run the data script with:
 
-## Project Goal
-
-RotationLab is intended to demonstrate a full basketball analytics software workflow:
-
-```text
-NBA data ingestion
-        ↓
-data processing
-        ↓
-traditional + advanced basketball metrics
-        ↓
-FastAPI backend
-        ↓
-React decision-support interface
-        ↓
-lineup discovery
-        ↓
-lineup comparison
-        ↓
-player replacement analysis
-        ↓
-rotation decision support
+```powershell
+python scripts/test_okc_lineups.py
 ```
 
-The long-term goal is to evolve the project from a lineup statistics explorer into a more complete basketball operations application capable of supporting lineup evaluation, player replacement analysis, rotation analysis, substitution analysis, and possession-level decision support.
+The FastAPI backend reads the processed CSV and exposes the lineup data and analysis endpoints to the React frontend.
+
+## Architecture
+
+```text
+NBA Stats / nba_api
+        ↓
+data ingestion + processing
+        ↓
+processed five-man lineup CSV
+        ↓
+FastAPI analytics API
+        ↓
+React + TypeScript frontend
+        ↓
+Overview
+├── Lineup Comparison
+├── Lineup Leaderboard
+├── Player Replacement Analysis
+└── Four-Player Core Analysis
+```
 
 ## Interpretation Note
 
-RotationLab currently works with observed lineup performance data.
+RotationLab analyzes observed lineup performance.
 
-Differences between two lineups should not automatically be interpreted as causal effects of a single player or substitution. Lineup performance can also be influenced by opponent quality, game state, teammate combinations, sample size, and other contextual factors.
+Differences between lineups should not automatically be interpreted as causal effects of a single player or substitution. Results may also be influenced by:
+
+- Opponent quality
+- Game state
+- Teammate combinations
+- Matchups
+- Sample size
+- Other contextual factors
 
 The application is designed to surface useful basketball information while keeping those limitations visible.
+
+## Future Directions
+
+Potential future expansion includes:
+
+- Game-level rotation timelines
+- Play-by-play lineup reconstruction
+- Lineup stint analysis
+- Possession-level metrics
+- More rigorous confidence and sample-size modeling
+- Multi-team and multi-season support
+- Persistent database storage
+- Cross-team lineup analysis
+
+## Project Goal
+
+RotationLab demonstrates an end-to-end basketball analytics software workflow:
+
+```text
+NBA data
+   ↓
+data processing
+   ↓
+FastAPI analytics
+   ↓
+React decision-support interface
+   ↓
+lineup comparison
+   ↓
+lineup ranking
+   ↓
+replacement discovery
+   ↓
+four-player core analysis
+   ↓
+rotation decision support
+```
+
+The project is intended to demonstrate full-stack software development, API design, data processing, automated testing, deployment, and basketball analytics in a single application.
