@@ -1,5 +1,7 @@
 # RotationLab
 
+[![RotationLab CI](https://github.com/richardrhanly-us/RotationLab/actions/workflows/tests.yml/badge.svg)](https://github.com/richardrhanly-us/RotationLab/actions/workflows/tests.yml)
+
 RotationLab is a full-stack NBA lineup and rotation analysis application built to support basketball operations-style decision making.
 
 The current version focuses on the Oklahoma City Thunder and the 2025-26 NBA season. It combines five-man lineup data, advanced efficiency metrics, player-level filtering, replacement analysis, and four-player core analysis in a React interface backed by FastAPI.
