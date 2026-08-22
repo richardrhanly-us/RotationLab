@@ -3,21 +3,27 @@ import { useSearchParams } from "react-router-dom";
 
 import LineupCard from "../components/LineupCard";
 import LineupPicker from "../components/LineupPicker";
+import PlayerAvatar from "../components/PlayerAvatar";
+import TeamBadge from "../components/TeamBadge";
+
 import type { LineupsResponse } from "../types/lineup";
+
+import { getLineupPlayers } from "../utils/lineupPlayers";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ComparePage() {
   const [searchParams] = useSearchParams();
+
   const [data, setData] = useState<LineupsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [lineupAId, setLineupAId] = useState("");
   const [lineupBId, setLineupBId] = useState("");
 
-  const [openLineupPicker, setOpenLineupPicker] = useState<"A" | "B" | null>(
-    null,
-  );
+  const [openLineupPicker, setOpenLineupPicker] = useState<
+    "A" | "B" | null
+  >(null);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/lineups?limit=250`)
@@ -68,12 +74,18 @@ function ComparePage() {
   }, [searchParams]);
 
   const lineupA = useMemo(
-    () => data?.lineups.find((lineup) => lineup.GROUP_ID === lineupAId),
+    () =>
+      data?.lineups.find(
+        (lineup) => lineup.GROUP_ID === lineupAId,
+      ),
     [data, lineupAId],
   );
 
   const lineupB = useMemo(
-    () => data?.lineups.find((lineup) => lineup.GROUP_ID === lineupBId),
+    () =>
+      data?.lineups.find(
+        (lineup) => lineup.GROUP_ID === lineupBId,
+      ),
     [data, lineupBId],
   );
 
@@ -95,21 +107,24 @@ function ComparePage() {
         label: "Win %",
         a: lineupA.W_PCT,
         b: lineupB.W_PCT,
-        format: (value: number) => `${(value * 100).toFixed(1)}%`,
+        format: (value: number) =>
+          `${(value * 100).toFixed(1)}%`,
         higherIsBetter: true,
       },
       {
         label: "FG %",
         a: lineupA.FG_PCT,
         b: lineupB.FG_PCT,
-        format: (value: number) => `${(value * 100).toFixed(1)}%`,
+        format: (value: number) =>
+          `${(value * 100).toFixed(1)}%`,
         higherIsBetter: true,
       },
       {
         label: "3P %",
         a: lineupA.FG3_PCT,
         b: lineupB.FG3_PCT,
-        format: (value: number) => `${(value * 100).toFixed(1)}%`,
+        format: (value: number) =>
+          `${(value * 100).toFixed(1)}%`,
         higherIsBetter: true,
       },
       {
@@ -131,7 +146,9 @@ function ComparePage() {
         a: lineupA.NET_RATING,
         b: lineupB.NET_RATING,
         format: (value: number) =>
-          value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1),
+          value > 0
+            ? `+${value.toFixed(1)}`
+            : value.toFixed(1),
         higherIsBetter: true,
       },
       {
@@ -146,7 +163,8 @@ function ComparePage() {
         label: "TS %",
         a: lineupA.TS_PCT,
         b: lineupB.TS_PCT,
-        format: (value: number) => `${(value * 100).toFixed(1)}%`,
+        format: (value: number) =>
+          `${(value * 100).toFixed(1)}%`,
         higherIsBetter: true,
       },
       {
@@ -196,7 +214,9 @@ function ComparePage() {
         a: per36(lineupA.PLUS_MINUS, lineupA.MIN),
         b: per36(lineupB.PLUS_MINUS, lineupB.MIN),
         format: (value: number) =>
-          value > 0 ? `+${value.toFixed(1)}` : value.toFixed(1),
+          value > 0
+            ? `+${value.toFixed(1)}`
+            : value.toFixed(1),
         higherIsBetter: true,
       },
     ];
@@ -240,11 +260,19 @@ function ComparePage() {
   }, [comparisonMetrics, lineupA, lineupB]);
 
   if (loading) {
-    return <main className="app-shell">Loading lineup comparison...</main>;
+    return (
+      <main className="app-shell">
+        Loading lineup comparison...
+      </main>
+    );
   }
 
   if (!data) {
-    return <main className="app-shell">Could not load lineup data.</main>;
+    return (
+      <main className="app-shell">
+        Could not load lineup data.
+      </main>
+    );
   }
 
   return (
@@ -252,17 +280,20 @@ function ComparePage() {
       <section className="hero">
         <div>
           <p className="eyebrow">Lineup Analysis</p>
+
           <h1>Lineup Comparison</h1>
+
           <p className="subtitle">
-            Compare two observed five-man units across performance and
-            efficiency metrics.
+            Compare two observed five-man units across performance
+            and efficiency metrics.
           </p>
         </div>
 
-        <div className="team-context">
-          <strong>{data.team}</strong>
-          <span>{data.season} Season</span>
-        </div>
+        <TeamBadge
+        team={data.team}
+        season={data.season}
+        compact
+        />
       </section>
 
       <section className="panel">
@@ -272,7 +303,9 @@ function ComparePage() {
             <h2>Compare Five-Man Units</h2>
           </div>
 
-          <span className="sample-count">{data.count} lineups loaded</span>
+          <span className="sample-count">
+            {data.count} lineups loaded
+          </span>
         </div>
 
         <div className="selectors">
@@ -283,7 +316,9 @@ function ComparePage() {
             onSelect={setLineupAId}
             isOpen={openLineupPicker === "A"}
             onToggle={() =>
-              setOpenLineupPicker((current) => (current === "A" ? null : "A"))
+              setOpenLineupPicker((current) =>
+                current === "A" ? null : "A",
+              )
             }
             onClose={() => setOpenLineupPicker(null)}
           />
@@ -295,7 +330,9 @@ function ComparePage() {
             onSelect={setLineupBId}
             isOpen={openLineupPicker === "B"}
             onToggle={() =>
-              setOpenLineupPicker((current) => (current === "B" ? null : "B"))
+              setOpenLineupPicker((current) =>
+                current === "B" ? null : "B",
+              )
             }
             onClose={() => setOpenLineupPicker(null)}
           />
@@ -305,8 +342,53 @@ function ComparePage() {
       {lineupA && lineupB && (
         <>
           <section className="comparison-grid">
-            <LineupCard title="Lineup A" lineup={lineupA} />
-            <LineupCard title="Lineup B" lineup={lineupB} />
+            <div className="lineup-comparison-column">
+              <div className="lineup-player-strip">
+                {getLineupPlayers(lineupA).map((player) => (
+                  <div
+                    className="lineup-player-chip"
+                    key={player.id}
+                  >
+                    <PlayerAvatar
+                      playerId={player.id}
+                      playerName={player.name}
+                      size="small"
+                    />
+
+                    <span>{player.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <LineupCard
+                title="Lineup A"
+                lineup={lineupA}
+              />
+            </div>
+
+            <div className="lineup-comparison-column">
+              <div className="lineup-player-strip">
+                {getLineupPlayers(lineupB).map((player) => (
+                  <div
+                    className="lineup-player-chip"
+                    key={player.id}
+                  >
+                    <PlayerAvatar
+                      playerId={player.id}
+                      playerName={player.name}
+                      size="small"
+                    />
+
+                    <span>{player.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              <LineupCard
+                title="Lineup B"
+                lineup={lineupB}
+              />
+            </div>
           </section>
 
           <section className="panel comparison-panel">
@@ -341,21 +423,35 @@ function ComparePage() {
                     : metric.b < metric.a);
 
                 return (
-                  <div className="comparison-row" key={metric.label}>
-                    <span className="comparison-label">{metric.label}</span>
+                  <div
+                    className="comparison-row"
+                    key={metric.label}
+                  >
+                    <span className="comparison-label">
+                      {metric.label}
+                    </span>
 
-                    <span className={aWins ? "comparison-winner" : ""}>
+                    <span
+                      className={
+                        aWins ? "comparison-winner" : ""
+                      }
+                    >
                       {metric.format(metric.a)}
                     </span>
 
                     <span className="comparison-difference">
                       {difference > 0 ? "+" : ""}
+
                       {metric.label.includes("%")
                         ? `${(difference * 100).toFixed(1)}`
                         : difference.toFixed(1)}
                     </span>
 
-                    <span className={bWins ? "comparison-winner" : ""}>
+                    <span
+                      className={
+                        bWins ? "comparison-winner" : ""
+                      }
+                    >
                       {metric.format(metric.b)}
                     </span>
                   </div>
@@ -366,7 +462,9 @@ function ComparePage() {
             {comparisonSummary && (
               <div className="comparison-summary">
                 <div>
-                  <p className="eyebrow">Comparison Profile</p>
+                  <p className="eyebrow">
+                    Comparison Profile
+                  </p>
 
                   <h3>
                     {comparisonSummary.lineupAWins >
@@ -379,21 +477,26 @@ function ComparePage() {
                   </h3>
 
                   <p className="summary-note">
-                    This is a descriptive comparison of the selected metrics,
-                    not an overall lineup ranking. Sample size and game context
-                    should also be considered.
+                    This is a descriptive comparison of the
+                    selected metrics, not an overall lineup
+                    ranking. Sample size and game context should
+                    also be considered.
                   </p>
                 </div>
 
                 <div className="summary-score">
                   <div>
                     <span>Lineup A</span>
-                    <strong>{comparisonSummary.lineupAWins}</strong>
+                    <strong>
+                      {comparisonSummary.lineupAWins}
+                    </strong>
                   </div>
 
                   <div>
                     <span>Lineup B</span>
-                    <strong>{comparisonSummary.lineupBWins}</strong>
+                    <strong>
+                      {comparisonSummary.lineupBWins}
+                    </strong>
                   </div>
 
                   <div>

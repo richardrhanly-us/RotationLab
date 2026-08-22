@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { Lineup, LineupsResponse } from "../types/lineup";
+import PlayerAvatar from "../components/PlayerAvatar";
+import { getLineupPlayers } from "../utils/lineupPlayers";
+
+import TeamBadge from "../components/TeamBadge";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -21,15 +25,9 @@ function FourPlayerCorePage() {
   const [data, setData] = useState<LineupsResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [corePlayers, setCorePlayers] = useState([
-    "",
-    "",
-    "",
-    "",
-  ]);
+  const [corePlayers, setCorePlayers] = useState(["", "", "", ""]);
 
-  const [coreData, setCoreData] =
-    useState<FourPlayerCoreResponse | null>(null);
+  const [coreData, setCoreData] = useState<FourPlayerCoreResponse | null>(null);
 
   const [coreLoading, setCoreLoading] = useState(false);
   const [coreError, setCoreError] = useState("");
@@ -70,20 +68,14 @@ function FourPlayerCorePage() {
       });
     });
 
-    return Array.from(names).sort((a, b) =>
-      a.localeCompare(b),
-    );
+    return Array.from(names).sort((a, b) => a.localeCompare(b));
   }, [data]);
 
   const analyzeFourPlayerCore = () => {
-    const selectedPlayers = corePlayers.filter(
-      (player) => player !== "",
-    );
+    const selectedPlayers = corePlayers.filter((player) => player !== "");
 
     if (selectedPlayers.length !== 4) {
-      setCoreError(
-        "Choose four players before running the analysis.",
-      );
+      setCoreError("Choose four players before running the analysis.");
       setCoreData(null);
       return;
     }
@@ -104,9 +96,7 @@ function FourPlayerCorePage() {
     setCoreLoading(true);
     setCoreError("");
 
-    fetch(
-      `${API_BASE_URL}/api/lineups/four-player-core?${params.toString()}`,
-    )
+    fetch(`${API_BASE_URL}/api/lineups/four-player-core?${params.toString()}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(
@@ -120,15 +110,10 @@ function FourPlayerCorePage() {
         setCoreData(result);
       })
       .catch((error) => {
-        console.error(
-          "Could not load four-player core analysis:",
-          error,
-        );
+        console.error("Could not load four-player core analysis:", error);
 
         setCoreData(null);
-        setCoreError(
-          "Could not load four-player core analysis.",
-        );
+        setCoreError("Could not load four-player core analysis.");
       })
       .finally(() => {
         setCoreLoading(false);
@@ -137,18 +122,12 @@ function FourPlayerCorePage() {
 
   if (loading) {
     return (
-      <main className="app-shell">
-        Loading four-player core analysis...
-      </main>
+      <main className="app-shell">Loading four-player core analysis...</main>
     );
   }
 
   if (!data) {
-    return (
-      <main className="app-shell">
-        Could not load lineup data.
-      </main>
-    );
+    return <main className="app-shell">Could not load lineup data.</main>;
   }
 
   return (
@@ -159,15 +138,12 @@ function FourPlayerCorePage() {
           <h1>Four-Player Core Analysis</h1>
 
           <p className="subtitle">
-            Select four players and evaluate every observed
-            fifth-player combination built around that core.
+            Select four players and evaluate every observed fifth-player
+            combination built around that core.
           </p>
         </div>
 
-        <div className="team-context">
-          <strong>{data.team}</strong>
-          <span>{data.season} Season</span>
-        </div>
+        <TeamBadge team={data.team} season={data.season} compact />
       </section>
 
       <section className="panel replacement-panel">
@@ -185,12 +161,11 @@ function FourPlayerCorePage() {
         </div>
 
         <p className="replacement-intro">
-          Select four players to find every observed five-man
-          lineup containing that core. Fifth-player options are
-          ranked by observed Net Rating.
+          Select four players to find every observed five-man lineup containing
+          that core. Fifth-player options are ranked by observed Net Rating.
         </p>
 
-        <div className="replacement-controls">
+        <div className="core-controls">
           {corePlayers.map((selectedPlayer, index) => (
             <label key={index}>
               <span>Player {index + 1}</span>
@@ -200,25 +175,21 @@ function FourPlayerCorePage() {
                 onChange={(event) => {
                   const nextPlayers = [...corePlayers];
 
-                  nextPlayers[index] =
-                    event.target.value;
+                  nextPlayers[index] = event.target.value;
 
                   setCorePlayers(nextPlayers);
                   setCoreData(null);
                   setCoreError("");
                 }}
               >
-                <option value="">
-                  Choose player...
-                </option>
+                <option value="">Choose player...</option>
 
                 {players.map((player) => (
                   <option
                     key={player}
                     value={player}
                     disabled={
-                      corePlayers.includes(player) &&
-                      selectedPlayer !== player
+                      corePlayers.includes(player) && selectedPlayer !== player
                     }
                   >
                     {player}
@@ -238,23 +209,15 @@ function FourPlayerCorePage() {
           {coreLoading ? "Analyzing..." : "Analyze Core"}
         </button>
 
-        {coreError && (
-          <div className="replacement-empty">
-            {coreError}
-          </div>
-        )}
+        {coreError && <div className="replacement-empty">{coreError}</div>}
 
         {coreData && !coreLoading && (
           <div className="replacement-discovery">
             <div className="replacement-discovery-header">
               <div>
-                <p className="eyebrow">
-                  Observed Fifth Players
-                </p>
+                <p className="eyebrow">Observed Fifth Players</p>
 
-                <h3>
-                  Best Observed Five-Man Combinations
-                </h3>
+                <h3>Best Observed Five-Man Combinations</h3>
               </div>
 
               <span className="sample-count">
@@ -264,80 +227,81 @@ function FourPlayerCorePage() {
 
             {coreData.lineups.length > 0 ? (
               <div className="replacement-options">
-                {coreData.lineups.map(
-                  ({ fifth_player, lineup }, index) => {
-                    const reliability =
-                      getReliability(lineup.MIN);
+                {coreData.lineups.map(({ fifth_player, lineup }, index) => {
+                  const reliability = getReliability(lineup.MIN);
 
-                    return (
-                      <div
-                        className="replacement-option core-result-row"
-                        key={`${lineup.GROUP_ID}-${fifth_player}`}
-                      >
-                        <div className="replacement-option-rank">
-                          #{index + 1}
-                        </div>
+                  const fifthPlayer = getLineupPlayers(lineup).find(
+                    (player) => player.name === fifth_player,
+                  );
+
+                  return (
+                    <div
+                      className="replacement-option core-result-row"
+                      key={`${lineup.GROUP_ID}-${fifth_player}`}
+                    >
+                      <div className="replacement-option-rank">
+                        #{index + 1}
+                      </div>
+
+                      <div className="core-player-result">
+                        {fifthPlayer && (
+                          <PlayerAvatar
+                            playerId={fifthPlayer.id}
+                            playerName={fifthPlayer.name}
+                            size="medium"
+                          />
+                        )}
 
                         <div className="replacement-option-player">
-                          <strong>
-                            {fifth_player}
-                          </strong>
+                          <strong>{fifth_player}</strong>
 
                           <span>
-                            {lineup.MIN.toFixed(1)} MIN
-                            {" • "}
-                            {reliability.label} reliability
+                            {lineup.MIN.toFixed(1)} MIN • {reliability.label}{" "}
+                            reliability
                           </span>
                         </div>
-
-                        <div className="replacement-option-metric">
-                          <span>ORTG</span>
-                          <strong>
-                            {lineup.OFF_RATING.toFixed(1)}
-                          </strong>
-                        </div>
-
-                        <div className="replacement-option-metric">
-                          <span>DRTG</span>
-                          <strong>
-                            {lineup.DEF_RATING.toFixed(1)}
-                          </strong>
-                        </div>
-
-                        <div className="replacement-option-metric">
-                          <span>NET</span>
-
-                          <strong
-                            className={
-                              lineup.NET_RATING > 0
-                                ? "positive-rating"
-                                : lineup.NET_RATING < 0
-                                  ? "negative-rating"
-                                  : ""
-                            }
-                          >
-                            {lineup.NET_RATING > 0
-                              ? "+"
-                              : ""}
-                            {lineup.NET_RATING.toFixed(1)}
-                          </strong>
-                        </div>
                       </div>
-                    );
-                  },
-                )}
+
+                      <div className="replacement-option-metric">
+                        <span>ORTG</span>
+                        <strong>{lineup.OFF_RATING.toFixed(1)}</strong>
+                      </div>
+
+                      <div className="replacement-option-metric">
+                        <span>DRTG</span>
+                        <strong>{lineup.DEF_RATING.toFixed(1)}</strong>
+                      </div>
+
+                      <div className="replacement-option-metric">
+                        <span>NET</span>
+
+                        <strong
+                          className={
+                            lineup.NET_RATING > 0
+                              ? "positive-rating"
+                              : lineup.NET_RATING < 0
+                                ? "negative-rating"
+                                : ""
+                          }
+                        >
+                          {lineup.NET_RATING > 0 ? "+" : ""}
+                          {lineup.NET_RATING.toFixed(1)}
+                        </strong>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="replacement-empty">
-                No observed five-man lineups were found for
-                this four-player core.
+                No observed five-man lineups were found for this four-player
+                core.
               </div>
             )}
 
             <p className="replacement-note">
-              Results are ranked by observed Net Rating.
-              Minutes and sample reliability should be
-              considered when comparing fifth-player
+              Results are ranked by observed Net Rating. Minutes and sample
+              reliability should be considered when comparing fifth-player
               options.
             </p>
           </div>

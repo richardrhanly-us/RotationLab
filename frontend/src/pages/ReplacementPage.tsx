@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
+import LineupPicker from "../components/LineupPicker";
+import TeamBadge from "../components/TeamBadge";
+
+import PlayerAvatar from "../components/PlayerAvatar";
+import { getLineupPlayers } from "../utils/lineupPlayers";
+
 import type { Lineup, LineupsResponse } from "../types/lineup";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -34,6 +40,8 @@ function ReplacementPage() {
     useState<ReplacementResponse | null>(null);
 
   const [replacementLoading, setReplacementLoading] = useState(false);
+
+  const [openLineupPicker, setOpenLineupPicker] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/api/lineups?limit=250`)
@@ -79,10 +87,7 @@ function ReplacementPage() {
   }, [data]);
 
   const replacementBase = useMemo(
-    () =>
-      data?.lineups.find(
-        (lineup) => lineup.GROUP_ID === replacementBaseId,
-      ),
+    () => data?.lineups.find((lineup) => lineup.GROUP_ID === replacementBaseId),
     [data, replacementBaseId],
   );
 
@@ -97,18 +102,11 @@ function ReplacementPage() {
   }, [replacementBase]);
 
   const replacementCandidates = useMemo(() => {
-    return players.filter(
-      (player) => !replacementBasePlayers.includes(player),
-    );
+    return players.filter((player) => !replacementBasePlayers.includes(player));
   }, [players, replacementBasePlayers]);
 
   const replacementResult = useMemo(() => {
-    if (
-      !data ||
-      !replacementBase ||
-      !removePlayer ||
-      !replacementPlayer
-    ) {
+    if (!data || !replacementBase || !removePlayer || !replacementPlayer) {
       return null;
     }
 
@@ -149,9 +147,7 @@ function ReplacementPage() {
       remove_player: removePlayer,
     });
 
-    fetch(
-      `${API_BASE_URL}/api/lineups/replacements?${params.toString()}`,
-    )
+    fetch(`${API_BASE_URL}/api/lineups/replacements?${params.toString()}`)
       .then((response) => {
         if (!response.ok) {
           throw new Error(
@@ -174,19 +170,11 @@ function ReplacementPage() {
   }, [replacementBaseId, removePlayer]);
 
   if (loading) {
-    return (
-      <main className="app-shell">
-        Loading replacement analysis...
-      </main>
-    );
+    return <main className="app-shell">Loading replacement analysis...</main>;
   }
 
   if (!data) {
-    return (
-      <main className="app-shell">
-        Could not load lineup data.
-      </main>
-    );
+    return <main className="app-shell">Could not load lineup data.</main>;
   }
 
   return (
@@ -194,17 +182,16 @@ function ReplacementPage() {
       <section className="hero">
         <div>
           <p className="eyebrow">Rotation Analysis</p>
+
           <h1>Player Replacement Analysis</h1>
+
           <p className="subtitle">
-            Compare observed lineup alternatives after replacing one
-            player in a five-man unit.
+            Compare observed lineup alternatives after replacing one player in a
+            five-man unit.
           </p>
         </div>
 
-        <div className="team-context">
-          <strong>{data.team}</strong>
-          <span>{data.season} Season</span>
-        </div>
+        <TeamBadge team={data.team} season={data.season} compact />
       </section>
 
       <section className="panel replacement-panel">
@@ -216,35 +203,28 @@ function ReplacementPage() {
         </div>
 
         <p className="replacement-intro">
-          Replace one player in an observed five-man unit and compare
-          it with the matching lineup, if that combination has
-          appeared in the loaded NBA data.
+          Replace one player in an observed five-man unit and compare it with
+          the matching lineup, if that combination has appeared in the loaded
+          NBA data.
         </p>
 
         <div className="replacement-controls">
-          <label>
-            <span>Base Lineup</span>
-
-            <select
-              value={replacementBaseId}
-              onChange={(event) => {
-                setReplacementBaseId(event.target.value);
-                setRemovePlayer("");
-                setReplacementPlayer("");
-                setReplacementData(null);
-                setReplacementLoading(false);
-              }}
-            >
-              {data.lineups.map((lineup) => (
-                <option
-                  key={lineup.GROUP_ID}
-                  value={lineup.GROUP_ID}
-                >
-                  {lineup.GROUP_NAME}
-                </option>
-              ))}
-            </select>
-          </label>
+          <LineupPicker
+            label="Base Lineup"
+            lineups={data.lineups}
+            selectedId={replacementBaseId}
+            onSelect={(lineupId) => {
+              setReplacementBaseId(lineupId);
+              setRemovePlayer("");
+              setReplacementPlayer("");
+              setReplacementData(null);
+              setReplacementLoading(false);
+              setOpenLineupPicker(false);
+            }}
+            isOpen={openLineupPicker}
+            onToggle={() => setOpenLineupPicker((current) => !current)}
+            onClose={() => setOpenLineupPicker(false)}
+          />
 
           <label>
             <span>Remove Player</span>
@@ -275,9 +255,7 @@ function ReplacementPage() {
 
             <select
               value={replacementPlayer}
-              onChange={(event) =>
-                setReplacementPlayer(event.target.value)
-              }
+              onChange={(event) => setReplacementPlayer(event.target.value)}
             >
               <option value="">Choose replacement...</option>
 
@@ -295,9 +273,8 @@ function ReplacementPage() {
             <div className="replacement-discovery-header">
               <div>
                 <p className="eyebrow">Observed Alternatives</p>
-                <h3>
-                  Replacement Options for {removePlayer}
-                </h3>
+
+                <h3>Replacement Options for {removePlayer}</h3>
               </div>
 
               <span className="sample-count">
@@ -309,21 +286,15 @@ function ReplacementPage() {
               <div className="replacement-empty">
                 Loading replacement options...
               </div>
-            ) : replacementData &&
-              replacementData.replacements.length > 0 ? (
+            ) : replacementData && replacementData.replacements.length > 0 ? (
               <div className="replacement-options">
                 {replacementData.replacements.map(
-                  (
-                    {
-                      lineup,
-                      replacement_player: candidatePlayer,
-                    },
-                    index,
-                  ) => {
-                    const reliability = getReliability(
-                      lineup.MIN,
-                    );
+                  ({ lineup, replacement_player: candidatePlayer }, index) => {
+                    const reliability = getReliability(lineup.MIN);
 
+                    const replacementPlayerData = getLineupPlayers(lineup).find(
+                      (player) => player.name === candidatePlayer,
+                    );
                     return (
                       <div
                         className="replacement-option"
@@ -333,30 +304,38 @@ function ReplacementPage() {
                           #{index + 1}
                         </div>
 
+                        <div className="replacement-player-result">
+                        {replacementPlayerData && (
+                            <PlayerAvatar
+                            playerId={replacementPlayerData.id}
+                            playerName={replacementPlayerData.name}
+                            size="medium"
+                            />
+                        )}
+
                         <div className="replacement-option-player">
-                          <strong>{candidatePlayer}</strong>
-                          <span>
+                            <strong>{candidatePlayer}</strong>
+
+                            <span>
                             {lineup.MIN.toFixed(1)} MIN •{" "}
                             {reliability.label} reliability
-                          </span>
+                            </span>
+                        </div>
                         </div>
 
                         <div className="replacement-option-metric">
                           <span>ORTG</span>
-                          <strong>
-                            {lineup.OFF_RATING.toFixed(1)}
-                          </strong>
+                          <strong>{lineup.OFF_RATING.toFixed(1)}</strong>
                         </div>
 
                         <div className="replacement-option-metric">
                           <span>DRTG</span>
-                          <strong>
-                            {lineup.DEF_RATING.toFixed(1)}
-                          </strong>
+                          <strong>{lineup.DEF_RATING.toFixed(1)}</strong>
                         </div>
 
                         <div className="replacement-option-metric">
                           <span>NET</span>
+
                           <strong
                             className={
                               lineup.NET_RATING > 0
@@ -374,11 +353,7 @@ function ReplacementPage() {
                         <button
                           type="button"
                           className="replacement-option-button"
-                          onClick={() =>
-                            setReplacementPlayer(
-                              candidatePlayer,
-                            )
-                          }
+                          onClick={() => setReplacementPlayer(candidatePlayer)}
                         >
                           Compare
                         </button>
@@ -389,98 +364,92 @@ function ReplacementPage() {
               </div>
             ) : (
               <div className="replacement-empty">
-                No observed replacement lineups were found for
-                the selected player.
+                No observed replacement lineups were found for the selected
+                player.
               </div>
             )}
 
             <p className="replacement-note">
-              Options are ranked by observed Net Rating. Rankings
-              are descriptive and should be interpreted alongside
-              minutes and sample reliability.
+              Options are ranked by observed Net Rating. Rankings are
+              descriptive and should be interpreted alongside minutes and sample
+              reliability.
             </p>
           </div>
         )}
 
-        {replacementBase &&
-          removePlayer &&
-          replacementPlayer && (
-            <div className="replacement-result">
-              <div className="replacement-change">
-                <span>{removePlayer}</span>
-                <strong>→</strong>
-                <span>{replacementPlayer}</span>
-              </div>
-
-              {replacementResult ? (
-                <>
-                  <div className="replacement-lineups">
-                    <div>
-                      <p className="eyebrow">Original Unit</p>
-                      <h3>{replacementBase.GROUP_NAME}</h3>
-                      <span>
-                        {replacementBase.MIN.toFixed(1)} minutes
-                      </span>
-                    </div>
-
-                    <div>
-                      <p className="eyebrow">
-                        Observed Replacement Unit
-                      </p>
-                      <h3>{replacementResult.GROUP_NAME}</h3>
-                      <span>
-                        {replacementResult.MIN.toFixed(1)} minutes
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="replacement-metrics">
-                    <ReplacementMetric
-                      label="Off Rating"
-                      before={replacementBase.OFF_RATING}
-                      after={replacementResult.OFF_RATING}
-                      lowerIsBetter={false}
-                    />
-
-                    <ReplacementMetric
-                      label="Def Rating"
-                      before={replacementBase.DEF_RATING}
-                      after={replacementResult.DEF_RATING}
-                      lowerIsBetter
-                    />
-
-                    <ReplacementMetric
-                      label="Net Rating"
-                      before={replacementBase.NET_RATING}
-                      after={replacementResult.NET_RATING}
-                      lowerIsBetter={false}
-                    />
-
-                    <ReplacementMetric
-                      label="Minutes"
-                      before={replacementBase.MIN}
-                      after={replacementResult.MIN}
-                      lowerIsBetter={false}
-                      descriptive
-                    />
-                  </div>
-
-                  <p className="replacement-note">
-                    This compares two observed lineup samples. It
-                    does not establish that the player
-                    substitution caused the difference in
-                    performance.
-                  </p>
-                </>
-              ) : (
-                <div className="replacement-empty">
-                  No observed lineup containing this exact
-                  replacement combination was found in the loaded
-                  data.
-                </div>
-              )}
+        {replacementBase && removePlayer && replacementPlayer && (
+          <div className="replacement-result">
+            <div className="replacement-change">
+              <span>{removePlayer}</span>
+              <strong>→</strong>
+              <span>{replacementPlayer}</span>
             </div>
-          )}
+
+            {replacementResult ? (
+              <>
+                <div className="replacement-lineups">
+                  <div>
+                    <p className="eyebrow">Original Unit</p>
+
+                    <h3>{replacementBase.GROUP_NAME}</h3>
+
+                    <span>{replacementBase.MIN.toFixed(1)} minutes</span>
+                  </div>
+
+                  <div>
+                    <p className="eyebrow">Observed Replacement Unit</p>
+
+                    <h3>{replacementResult.GROUP_NAME}</h3>
+
+                    <span>{replacementResult.MIN.toFixed(1)} minutes</span>
+                  </div>
+                </div>
+
+                <div className="replacement-metrics">
+                  <ReplacementMetric
+                    label="Off Rating"
+                    before={replacementBase.OFF_RATING}
+                    after={replacementResult.OFF_RATING}
+                    lowerIsBetter={false}
+                  />
+
+                  <ReplacementMetric
+                    label="Def Rating"
+                    before={replacementBase.DEF_RATING}
+                    after={replacementResult.DEF_RATING}
+                    lowerIsBetter
+                  />
+
+                  <ReplacementMetric
+                    label="Net Rating"
+                    before={replacementBase.NET_RATING}
+                    after={replacementResult.NET_RATING}
+                    lowerIsBetter={false}
+                  />
+
+                  <ReplacementMetric
+                    label="Minutes"
+                    before={replacementBase.MIN}
+                    after={replacementResult.MIN}
+                    lowerIsBetter={false}
+                    descriptive
+                  />
+                </div>
+
+                <p className="replacement-note">
+                  This compares two observed lineup samples. It does not
+                  establish that the player substitution caused the difference
+                  in performance.
+                </p>
+              </>
+            ) : (
+              <div className="replacement-empty">
+                No observed lineup containing this exact replacement combination
+                was found in the loaded data.
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </main>
   );

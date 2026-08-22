@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import type { LineupsResponse } from "../types/lineup";
+import TeamBadge from "../components/TeamBadge";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -63,27 +64,20 @@ function LeaderboardPage() {
     }
 
     const filtered = data.lineups.filter((lineup) => {
-      const lineupPlayers = lineup.GROUP_NAME.split(" - ").map(
-        (player) => player.trim(),
+      const lineupPlayers = lineup.GROUP_NAME.split(" - ").map((player) =>
+        player.trim(),
       );
 
       const meetsMinutes = lineup.MIN >= minimumMinutes;
       const meetsGames = lineup.GP >= minimumGames;
 
       const includesPlayer =
-        includePlayer === "" ||
-        lineupPlayers.includes(includePlayer);
+        includePlayer === "" || lineupPlayers.includes(includePlayer);
 
       const excludesPlayer =
-        excludePlayer === "" ||
-        !lineupPlayers.includes(excludePlayer);
+        excludePlayer === "" || !lineupPlayers.includes(excludePlayer);
 
-      return (
-        meetsMinutes &&
-        meetsGames &&
-        includesPlayer &&
-        excludesPlayer
-      );
+      return meetsMinutes && meetsGames && includesPlayer && excludesPlayer;
     });
 
     const sorted = [...filtered].sort((a, b) => {
@@ -121,19 +115,11 @@ function LeaderboardPage() {
   ]);
 
   if (loading) {
-    return (
-      <main className="app-shell">
-        Loading leaderboard...
-      </main>
-    );
+    return <main className="app-shell">Loading leaderboard...</main>;
   }
 
   if (!data) {
-    return (
-      <main className="app-shell">
-        Could not load lineup data.
-      </main>
-    );
+    return <main className="app-shell">Could not load lineup data.</main>;
   }
 
   return (
@@ -143,15 +129,12 @@ function LeaderboardPage() {
           <p className="eyebrow">Lineup Rankings</p>
           <h1>Five-Man Unit Leaderboard</h1>
           <p className="subtitle">
-            Rank observed Oklahoma City lineups by efficiency,
-            minutes, shooting, and win rate.
+            Rank observed Oklahoma City lineups by efficiency, minutes,
+            shooting, and win rate.
           </p>
         </div>
 
-        <div className="team-context">
-          <strong>{data.team}</strong>
-          <span>{data.season} Season</span>
-        </div>
+        <TeamBadge team={data.team} season={data.season} compact />
       </section>
 
       <section className="panel leaderboard-panel">
@@ -189,9 +172,7 @@ function LeaderboardPage() {
               min="0"
               step="1"
               value={minimumGames}
-              onChange={(event) =>
-                setMinimumGames(Number(event.target.value))
-              }
+              onChange={(event) => setMinimumGames(Number(event.target.value))}
             />
           </label>
 
@@ -203,17 +184,11 @@ function LeaderboardPage() {
               onChange={(event) => setSortBy(event.target.value)}
             >
               <option value="NET_RATING">Net Rating</option>
-              <option value="OFF_RATING">
-                Offensive Rating
-              </option>
-              <option value="DEF_RATING">
-                Defensive Rating
-              </option>
+              <option value="OFF_RATING">Offensive Rating</option>
+              <option value="DEF_RATING">Defensive Rating</option>
               <option value="MIN">Minutes</option>
               <option value="W_PCT">Win %</option>
-              <option value="TS_PCT">
-                True Shooting %
-              </option>
+              <option value="TS_PCT">True Shooting %</option>
             </select>
           </label>
 
@@ -222,9 +197,7 @@ function LeaderboardPage() {
 
             <select
               value={topN}
-              onChange={(event) =>
-                setTopN(Number(event.target.value))
-              }
+              onChange={(event) => setTopN(Number(event.target.value))}
             >
               <option value={5}>Top 5</option>
               <option value={10}>Top 10</option>
@@ -237,9 +210,7 @@ function LeaderboardPage() {
 
             <select
               value={includePlayer}
-              onChange={(event) =>
-                setIncludePlayer(event.target.value)
-              }
+              onChange={(event) => setIncludePlayer(event.target.value)}
             >
               <option value="">Any player</option>
 
@@ -256,9 +227,7 @@ function LeaderboardPage() {
 
             <select
               value={excludePlayer}
-              onChange={(event) =>
-                setExcludePlayer(event.target.value)
-              }
+              onChange={(event) => setExcludePlayer(event.target.value)}
             >
               <option value="">No exclusion</option>
 
@@ -285,17 +254,10 @@ function LeaderboardPage() {
           </div>
 
           {leaderboard.map((lineup, index) => (
-            <div
-              className="leaderboard-row"
-              key={lineup.GROUP_ID}
-            >
-              <span className="leaderboard-rank">
-                {index + 1}
-              </span>
+            <div className="leaderboard-row" key={lineup.GROUP_ID}>
+              <span className="leaderboard-rank">{index + 1}</span>
 
-              <span className="leaderboard-name">
-                {lineup.GROUP_NAME}
-              </span>
+              <span className="leaderboard-name">{lineup.GROUP_NAME}</span>
 
               <span>{lineup.MIN.toFixed(1)}</span>
               <span>{lineup.GP}</span>
@@ -315,18 +277,14 @@ function LeaderboardPage() {
                 {lineup.NET_RATING.toFixed(1)}
               </span>
 
-              <span>
-                {(lineup.TS_PCT * 100).toFixed(1)}%
-              </span>
+              <span>{(lineup.TS_PCT * 100).toFixed(1)}%</span>
 
               <div className="leaderboard-actions">
                 <button
                   type="button"
                   onClick={() =>
                     navigate(
-                      `/compare?lineupA=${encodeURIComponent(
-                        lineup.GROUP_ID,
-                      )}`,
+                      `/compare?lineupA=${encodeURIComponent(lineup.GROUP_ID)}`,
                     )
                   }
                 >
@@ -337,9 +295,7 @@ function LeaderboardPage() {
                   type="button"
                   onClick={() =>
                     navigate(
-                      `/compare?lineupB=${encodeURIComponent(
-                        lineup.GROUP_ID,
-                      )}`,
+                      `/compare?lineupB=${encodeURIComponent(lineup.GROUP_ID)}`,
                     )
                   }
                 >
@@ -357,8 +313,8 @@ function LeaderboardPage() {
         </div>
 
         <p className="leaderboard-note">
-          Minimum-minute and minimum-game filters help reduce the
-          influence of extremely small lineup samples.
+          Minimum-minute and minimum-game filters help reduce the influence of
+          extremely small lineup samples.
         </p>
       </section>
     </main>
