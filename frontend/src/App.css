@@ -877,6 +877,85 @@ select {
   align-items: center;
 }
 
+
+/* =========================
+   APPLICATION NAVIGATION
+   ========================= */
+
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(6, 15, 28, 0.96);
+  backdrop-filter: blur(14px);
+}
+
+.app-nav-inner {
+  width: min(1400px, calc(100% - 48px));
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  min-height: 68px;
+}
+
+.app-brand {
+  color: white;
+  font-size: 1.15rem;
+  font-weight: 800;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.app-nav-link {
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.app-nav-link:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.app-nav-link.active {
+  color: white;
+  background: rgba(0, 125, 195, 0.18);
+}
+
+@media (max-width: 900px) {
+  .app-nav-inner {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 0;
+  }
+
+  .app-nav-links {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .app-nav-link {
+    white-space: nowrap;
+  }
+}
+
 /* =========================
    RESPONSIVE / MOBILE
    ========================= */
