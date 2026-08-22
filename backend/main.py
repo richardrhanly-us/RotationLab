@@ -1,11 +1,9 @@
 from pathlib import Path
-
-import pandas as pd
-from fastapi import FastAPI, HTTPException
-
 import os
 
+import pandas as pd
 
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -22,6 +20,7 @@ frontend_origin = os.getenv(
 
 allowed_origins = [
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     frontend_origin,
 ]
 
@@ -33,16 +32,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 DATA_PATH = Path("data/okc_lineups_2025_26.csv")
 
